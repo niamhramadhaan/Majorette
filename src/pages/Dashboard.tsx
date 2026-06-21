@@ -1,0 +1,436 @@
+﻿import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { Play, Pause, Plus, Calendar, ExternalLink, Music, Image as ImageIcon, Film, Clock, SkipBack, SkipForward, CheckCircle, RotateCcw, X, CheckCircle2 } from 'lucide-react';
+import { cn } from '../lib/utils';
+import { createPortal } from 'react-dom';
+import { STORAGE_KEYS, getActivities, getThumbnailUrl, getActiveSchedule, getUpcomingSchedule, getScheduleStartTime, emitSkipSignal, emitResumeSignal, emitDoneSignal, getPlayerState, getScheduleElapsed, getCurrentItemIndex, generateId, getTimestamp, getScheduleTotalDuration } from '../lib/storage';
+import type { LocalContent, Schedule, ActivityLog, ScheduleItem } from '../types';
+
+function toDatetimeLocal(isoString: string): string {
+  try {
+    const d = new Date(isoString);
+    const pad = (n: number) => String(n).padStart(2, '0');
+    return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+  } catch { return ''; }
+}
+
+export default function Dashboard() {
+  const navigate = useNavigate();
+  const [content, setContent] = useState<LocalContent[]>([]);
+  const [schedules, setSchedules] = useState<Schedule[]>([]);
+  const [activities, setActivities] = useState<ActivityLog[]>([]);
+  const [currentTime, setCurrentTime] = useState(new Date());
+  const [playerIsPlaying, setPlayerIsPlaying] = useState(true);
+  const [doneModalSchedule, setDoneModalSchedule] = useState<Schedule | null>(null);
+  const [recreateFromSchedule, setRecreateFromSchedule] = useState<Schedule | null>(null);
+  const [recreateMode, setRecreateMode] = useState<'loop' | 'once'>('loop');
+  const [recreateStartTime, setRecreateStartTime] = useState(() => {
+    const d = new Date();
+    d.setMinutes(d.getMinutes() + 5, 0, 0);
+    return d.toISOString();
+  });
+  const [toastMessage, setToastMessage] = useState<string | null>(null);
+
+  const showToast = (msg: string) => {
+    setToastMessage(msg);
+    setTimeout(() => setToastMessage(null), 3000);
+  };
+
+  useEffect(() => {
+    loadData();
+    const timer = setInterval(() => setCurrentTime(new Date()), 1000);
+    return () => clearInterval(timer);
+  }, []);
+
+  useEffect(() => {
+    const poll = setInterval(() => {
+      const state = getPlayerState();
+      if (state) setPlayerIsPlaying(state.isPlaying);
+    }, 1000);
+    return () => clearInterval(poll);
+  }, []);
+
+  const loadData = () => {
+    try {
+      const storedContent = localStorage.getItem(STORAGE_KEYS.CONTENT);
+      const storedSchedules = localStorage.getItem(STORAGE_KEYS.SCHEDULES);
+      if (storedContent) setContent(JSON.parse(storedContent));
+      if (storedSchedules) setSchedules(JSON.parse(storedSchedules));
+      setActivities(getActivities());
+    } catch { /* ignore */ }
+  };
+
+  const activeSchedule = getActiveSchedule(schedules, content);
+  const upcomingSchedule = !activeSchedule ? getUpcomingSchedule(schedules, content) : null;
+  const scheduleItems = activeSchedule?.items || [];
+  const playerState = getPlayerState();
+  const pauseElapsed = playerState?.pauseStart ? (Date.now() - playerState.pauseStart) / 1000 : 0;
+  const rawElapsed = activeSchedule ? getScheduleElapsed(activeSchedule, content) / 1000 : 0;
+  const elapsedSec = playerState ? rawElapsed - pauseElapsed + (playerState.manualOffset || 0) : rawElapsed;
+  const currentItemResult = activeSchedule ? getCurrentItemIndex(activeSchedule, content, elapsedSec) : null;
+  const currentItem = currentItemResult && scheduleItems[currentItemResult.index]
+    ? content.find(c => c.id === scheduleItems[currentItemResult.index].contentId)
+    : null;
+  const currentItemDuration = currentItem
+    ? (scheduleItems[currentItemResult!.index]?.duration || currentItem.duration)
+    : 0;
+  const currentItemProgress = currentItemDuration > 0
+    ? Math.min((currentItemResult!.offset / currentItemDuration) * 100, 100)
+    : 0;
+  const nextItems = scheduleItems.slice((currentItemResult?.index ?? 0) + 1, (currentItemResult?.index ?? 0) + 4).map(item => {
+    const contentItem = content.find(c => c.id === item.contentId);
+    return { ...item, content: contentItem };
+  });
+
+  const getUpcomingStart = (): Date | null => {
+    if (!upcomingSchedule) return null;
+    return getScheduleStartTime(upcomingSchedule);
+  };
+
+  const lastPlayedSchedules = schedules
+    .filter(s => s.status === 'done')
+    .sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime());
+
+  const getRelativeTime = (isoString: string) => {
+    const diff = Date.now() - new Date(isoString).getTime();
+    const mins = Math.floor(diff / 60000);
+    if (mins < 1) return 'Just now';
+    if (mins < 60) return `${mins}m ago`;
+    const hours = Math.floor(mins / 60);
+    if (hours < 24) return `${hours}h ago`;
+    const days = Math.floor(hours / 24);
+    return `${days}d ago`;
+  };
+
+  const formatElapsed = (seconds: number) => {
+    const h = Math.floor(seconds / 3600);
+    const m = Math.floor((seconds % 3600) / 60);
+    const s = Math.floor(seconds % 60);
+    if (h > 0) return `${h}h ${m}m`;
+    if (m > 0) return `${m}m ${s}s`;
+    return `${s}s`;
+  };
+
+  const venueName = localStorage.getItem(STORAGE_KEYS.SETTINGS)
+    ? JSON.parse(localStorage.getItem(STORAGE_KEYS.SETTINGS)!).venueName
+    : 'Your Venue';
+
+  const formatTime = (date: Date) => date.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true });
+  const formatDate = (date: Date) => date.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' });
+
+  const getContentIcon = (type?: string) => {
+    switch (type) {
+      case 'video': return <Film className="w-6 h-6 text-gray-400" />;
+      case 'audio': return <Music className="w-6 h-6 text-gray-400" />;
+      default: return <ImageIcon className="w-6 h-6 text-gray-400" />;
+    }
+  };
+
+  const getContentTitle = (contentId: string) => {
+    const item = content.find(c => c.id === contentId);
+    return item?.title || 'Unknown';
+  };
+
+  const handleRecreate = () => {
+    if (!recreateFromSchedule) return;
+    const newSchedule: Schedule = {
+      id: generateId(),
+      name: recreateFromSchedule.name,
+      items: recreateFromSchedule.items,
+      mode: recreateMode,
+      startTime: recreateStartTime,
+      locationId: recreateFromSchedule.locationId,
+      createdAt: getTimestamp(),
+      updatedAt: getTimestamp(),
+    };
+    const updated = [...schedules, newSchedule];
+    setSchedules(updated);
+    localStorage.setItem(STORAGE_KEYS.SCHEDULES, JSON.stringify(updated));
+    setRecreateFromSchedule(null);
+    showToast('New schedule created');
+  };
+
+  const openRecreateFromDone = (schedule: Schedule) => {
+    setRecreateFromSchedule(schedule);
+    setRecreateMode(schedule.mode);
+    const d = new Date();
+    d.setMinutes(d.getMinutes() + 5, 0, 0);
+    setRecreateStartTime(d.toISOString());
+  };
+
+  return (
+    <div className="space-y-6">
+      {toastMessage && (
+        <div className="bg-[#B9EA38]/20 text-[#0A5E28] px-4 py-3 rounded-lg border border-[#B9EA38]/50 flex items-center gap-2 font-medium animate-in fade-in slide-in-from-top-2 text-sm">
+          <CheckCircle2 className="w-4 h-4" />
+          {toastMessage}
+        </div>
+      )}
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-2xl font-heading font-bold text-gray-900">{venueName}</h1>
+          <p className="text-sm text-gray-500 mt-1">{formatDate(currentTime)} - {formatTime(currentTime)}</p>
+        </div>
+        <button onClick={() => window.open('/player', '_blank')} className="flex items-center gap-2 px-4 py-2 bg-[#0E7B35] hover:bg-[#0A5E28] text-white rounded-lg text-sm font-medium transition-colors shadow-sm">
+          <ExternalLink className="w-4 h-4" /> Open Player
+        </button>
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <div className="lg:col-span-2 space-y-6">
+          <div className="card p-6">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="font-heading font-semibold text-gray-800 flex items-center gap-2"><Play className="w-5 h-5 text-[#0E7B35]" /> Now Playing</h2>
+              {activeSchedule && <span className="px-3 py-1 bg-green-50 text-green-700 text-xs font-medium rounded-full border border-green-200">{activeSchedule.name}</span>}
+            </div>
+            {activeSchedule?.status === 'done' ? (
+              <div className="text-center py-8">
+                <CheckCircle className="w-12 h-12 text-[#0E7B35] mx-auto mb-3" />
+                <p className="text-gray-900 font-semibold text-lg mb-1">{activeSchedule.name}</p>
+                <p className="text-gray-400 mb-4">Schedule Completed</p>
+                <button onClick={() => openRecreateFromDone(activeSchedule)} className="inline-flex items-center gap-2 px-4 py-2 bg-[#0E7B35] hover:bg-[#0A5E28] text-white rounded-lg text-sm font-medium transition-colors">
+                  <RotateCcw className="w-4 h-4" /> Play Again
+                </button>
+              </div>
+            ) : currentItem ? (
+              <div className="flex items-center gap-6">
+                <div className="w-32 h-20 bg-gray-100 rounded-xl flex items-center justify-center flex-shrink-0 border border-gray-200 overflow-hidden">
+                  {getThumbnailUrl(currentItem) ? (
+                    <img src={getThumbnailUrl(currentItem)!} alt="" className="w-full h-full object-cover" />
+                  ) : (
+                    getContentIcon(currentItem.type)
+                  )}
+                </div>
+                <div className="flex-1">
+                  <h3 className="text-xl font-semibold text-gray-900">{currentItem.title}</h3>
+                  <p className="text-sm text-gray-500 mt-1 capitalize">{currentItem.type} - {currentItem.duration}s - {currentItem.fileName}</p>
+                  <div className="mt-3 flex items-center gap-3">
+                    <div className="flex-1 bg-gray-100 rounded-full h-2 overflow-hidden"><div className={cn("bg-[#0E7B35] h-full rounded-full transition-all duration-500", playerIsPlaying && "animate-pulse-bar")} style={{ width: Math.min(currentItemProgress, 100) + '%' }} /></div>
+                    <button onClick={() => emitSkipSignal('prev')} className="p-1.5 text-gray-400 hover:text-[#0E7B35] transition-all active:scale-90" title="Previous">
+                      <SkipBack className="w-4 h-4" />
+                    </button>
+                    <button onClick={() => emitSkipSignal('next')} className="p-1.5 text-gray-400 hover:text-[#0E7B35] transition-all active:scale-90" title="Next">
+                      <SkipForward className="w-4 h-4" />
+                    </button>
+                    {playerIsPlaying ? (
+                      <button onClick={() => { window.dispatchEvent(new CustomEvent('pause-signal')); localStorage.setItem(STORAGE_KEYS.PAUSE_SIGNAL, JSON.stringify({ timestamp: Date.now() })); }} className="p-1.5 text-gray-400 hover:text-red-500 transition-all active:scale-90" title="Pause">
+                        <Pause className="w-4 h-4" />
+                      </button>
+                    ) : (
+                      <button onClick={() => emitResumeSignal()} className="p-1.5 text-gray-400 hover:text-[#0E7B35] transition-all active:scale-90" title="Resume">
+                        <Play className="w-4 h-4" />
+                      </button>
+                    )}
+                    <button onClick={() => setDoneModalSchedule(activeSchedule)} className="p-1.5 text-gray-400 hover:text-[#0E7B35] transition-all active:scale-90" title="Mark Done">
+                      <CheckCircle className="w-4 h-4" />
+                    </button>
+                  </div>
+                </div>
+              </div>
+            ) : upcomingSchedule ? (
+              <div className="text-center py-8">
+                <Clock className="w-12 h-12 text-gray-300 mx-auto mb-3" />
+                <p className="text-gray-400 mb-1">No schedule playing right now</p>
+                <p className="text-[#0E7B35] font-medium">{upcomingSchedule.name}</p>
+                <p className="text-xs text-gray-500 mt-1">
+                  Starts {getUpcomingStart() ? formatTime(getUpcomingStart()!) : 'soon'}
+                </p>
+              </div>
+            ) : (
+              <div className="text-center py-8">
+                <Play className="w-12 h-12 text-gray-300 mx-auto mb-3" /><p className="text-gray-500">No content playing</p>
+                <button onClick={() => navigate('/films/ingest')} className="mt-3 text-sm text-[#0E7B35] hover:text-[#0A5E28] font-medium">Add content to get started</button>
+              </div>
+            )}
+          </div>
+
+          {nextItems.length > 0 && (
+            <div className="card p-6">
+              <h2 className="font-heading font-semibold text-gray-800 mb-4 flex items-center gap-2"><Clock className="w-5 h-5 text-gray-400" /> Up Next</h2>
+              <div className="space-y-3">
+                {nextItems.map((item, index) => (
+                  <div key={item.contentId} className="flex items-center gap-4 p-3 bg-gray-50 rounded-xl hover:bg-gray-100 transition-colors">
+                    <span className="w-8 h-8 bg-gray-200 rounded-full flex items-center justify-center text-sm font-bold text-gray-500">{index + 2}</span>
+                    <div className="w-12 h-8 bg-gray-200 rounded flex items-center justify-center flex-shrink-0 overflow-hidden">
+                      {item.content && getThumbnailUrl(item.content) ? (
+                        <img src={getThumbnailUrl(item.content)!} alt="" className="w-full h-full object-cover" />
+                      ) : (
+                        getContentIcon(item.content?.type)
+                      )}
+                    </div>
+                    <div className="flex-1">
+                      <p className="text-sm font-medium text-gray-700">{item.content?.title || 'Unknown'}</p>
+                      <p className="text-xs text-gray-500 capitalize">{item.content?.type} - {item.duration || item.content?.duration}s</p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {activities.length > 0 && (
+            <div className="card p-6">
+              <h2 className="font-heading font-semibold text-gray-800 mb-4">Recent Activity</h2>
+              <div className="space-y-3">
+                {activities.slice(0, 5).map((activity) => (
+                  <div key={activity.id} className="flex items-start gap-3">
+                    <div className={cn("w-2 h-2 rounded-full mt-2 flex-shrink-0", activity.type === 'success' ? "bg-green-500" : activity.type === 'warning' ? "bg-yellow-500" : "bg-blue-500")} />
+                    <div><p className="text-sm text-gray-700">{activity.message}</p><p className="text-xs text-gray-400 mt-0.5">{new Date(activity.timestamp).toLocaleTimeString()}</p></div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+
+        <div className="space-y-6">
+          <div className="card p-6">
+            <h2 className="font-heading font-semibold text-gray-800 mb-4">Quick Actions</h2>
+            <div className="space-y-3">
+              <button onClick={() => navigate('/films/ingest')} className="w-full flex items-center gap-3 p-4 bg-gray-50 hover:bg-gray-100 rounded-xl transition-colors text-left">
+                <div className="w-10 h-10 bg-[#0E7B35]/10 rounded-lg flex items-center justify-center"><Plus className="w-5 h-5 text-[#0E7B35]" /></div>
+                <div><p className="text-sm font-medium text-gray-700">Add Content</p><p className="text-xs text-gray-500">Select media files</p></div>
+              </button>
+              <button onClick={() => navigate('/schedule')} className="w-full flex items-center gap-3 p-4 bg-gray-50 hover:bg-gray-100 rounded-xl transition-colors text-left">
+                <div className="w-10 h-10 bg-[#0E7B35]/10 rounded-lg flex items-center justify-center"><Calendar className="w-5 h-5 text-[#0E7B35]" /></div>
+                <div><p className="text-sm font-medium text-gray-700">Edit Schedule</p><p className="text-xs text-gray-500">Manage your playlists</p></div>
+              </button>
+              <button onClick={() => window.open('/player', '_blank')} className="w-full flex items-center gap-3 p-4 bg-gray-50 hover:bg-gray-100 rounded-xl transition-colors text-left">
+                <div className="w-10 h-10 bg-[#0E7B35]/10 rounded-lg flex items-center justify-center"><ExternalLink className="w-5 h-5 text-[#0E7B35]" /></div>
+                <div><p className="text-sm font-medium text-gray-700">Open Player</p><p className="text-xs text-gray-500">Launch on your screen</p></div>
+              </button>
+            </div>
+          </div>
+
+          <div className="card p-6">
+            <h2 className="font-heading font-semibold text-gray-800 mb-4">Stats</h2>
+            <div className="space-y-4">
+              <div className="flex items-center justify-between"><span className="text-sm text-gray-500">Content Items</span><span className="text-sm font-semibold text-gray-700">{content.length}</span></div>
+              <div className="flex items-center justify-between"><span className="text-sm text-gray-500">Schedules</span><span className="text-sm font-semibold text-gray-700">{schedules.length}</span></div>
+              {activeSchedule ? (
+                <div className="flex items-center justify-between"><span className="text-sm text-gray-500">Now Playing</span><span className="text-sm font-semibold text-[#0E7B35]">{activeSchedule.name}</span></div>
+              ) : upcomingSchedule ? (
+                <div className="flex items-center justify-between"><span className="text-sm text-gray-500">Next Schedule</span><span className="text-sm font-semibold text-gray-700">{upcomingSchedule.name}</span></div>
+              ) : (
+                <div className="flex items-center justify-between"><span className="text-sm text-gray-500">Now Playing</span><span className="text-sm font-semibold text-gray-400">None</span></div>
+              )}
+            </div>
+          </div>
+
+          {lastPlayedSchedules.length > 0 && (
+            <div className="card p-6">
+              <h2 className="font-heading font-semibold text-gray-800 mb-4">Last Played</h2>
+              <div className="space-y-3">
+                {lastPlayedSchedules.slice(0, 3).map(schedule => (
+                  <div key={schedule.id} className="flex items-center justify-between">
+                    <div className="min-w-0">
+                      <p className="text-sm font-medium text-gray-900 truncate">{schedule.name}</p>
+                      <p className="text-xs text-gray-500">
+                        {schedule.items.length} items · {formatElapsed(getScheduleTotalDuration(schedule, content))}
+                      </p>
+                    </div>
+                    <span className="text-xs text-gray-400 flex-shrink-0 ml-3">{getRelativeTime(schedule.updatedAt)}</span>
+                  </div>
+                ))}
+              </div>
+              <button onClick={() => navigate('/schedule')} className="mt-4 text-sm text-[#0E7B35] hover:text-[#0A5E28] font-medium">
+                View All →
+              </button>
+            </div>
+          )}
+        </div>
+      </div>
+
+      {doneModalSchedule && createPortal(
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-gray-900/50 animate-in fade-in backdrop-blur-sm">
+          <div className="bg-white rounded-xl shadow-2xl w-full max-w-sm overflow-hidden flex flex-col animate-in slide-in-from-bottom-4">
+            <div className="p-6 text-center space-y-3">
+              <div className="w-12 h-12 rounded-full bg-[#0E7B35]/10 text-[#0E7B35] flex items-center justify-center mx-auto">
+                <CheckCircle className="w-6 h-6" />
+              </div>
+              <div>
+                <h3 className="font-heading font-semibold text-lg text-gray-900">Mark as Done?</h3>
+                <p className="text-sm text-gray-500 mt-1">
+                  Mark <span className="font-medium text-gray-700">{doneModalSchedule.name}</span> as completed? This will stop playback.
+                </p>
+              </div>
+            </div>
+            <div className="p-4 border-t border-gray-100 bg-gray-50 flex justify-end gap-3">
+              <button onClick={() => setDoneModalSchedule(null)} className="px-4 py-2 text-sm font-medium text-gray-600 hover:bg-gray-200 bg-white border border-gray-200 rounded-lg transition-colors">Cancel</button>
+              <button onClick={() => { setSchedules(emitDoneSignal(schedules, doneModalSchedule.id)); setDoneModalSchedule(null); showToast('Schedule marked as done'); }} className="px-5 py-2 text-sm font-medium text-white bg-[#0E7B35] hover:bg-[#0A5E28] rounded-lg transition-colors shadow-sm">
+                Mark Done
+              </button>
+            </div>
+          </div>
+        </div>,
+        document.body
+      )}
+
+      {recreateFromSchedule && createPortal(
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-gray-900/50 animate-in fade-in backdrop-blur-sm">
+          <div className="bg-white rounded-xl shadow-2xl w-full max-w-md overflow-hidden flex flex-col animate-in slide-in-from-bottom-4">
+            <div className="p-6 space-y-4">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-full bg-[#0E7B35]/10 text-[#0E7B35] flex items-center justify-center">
+                    <RotateCcw className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <h3 className="font-heading font-semibold text-lg text-gray-900">Play Again</h3>
+                    <p className="text-xs text-gray-500">Create a new schedule with the same content</p>
+                  </div>
+                </div>
+                <button onClick={() => setRecreateFromSchedule(null)} className="p-1.5 text-gray-400 hover:text-gray-600 rounded-md hover:bg-gray-100 transition-colors">
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+
+              <div className="bg-gray-50 rounded-lg p-3">
+                <p className="text-sm font-medium text-gray-900 mb-2">{recreateFromSchedule.name}</p>
+                <div className="space-y-1.5 max-h-32 overflow-y-auto">
+                  {recreateFromSchedule.items.map((item, index) => (
+                    <div key={index} className="flex items-center gap-2 text-xs text-gray-600">
+                      <span className="w-5 h-5 bg-gray-200 rounded flex items-center justify-center text-[10px] font-bold text-gray-400">{index + 1}</span>
+                      <span className="flex-1 truncate">{getContentTitle(item.contentId)}</span>
+                      <span className="text-gray-400 capitalize">{item.duration || '?'}s</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              <div className="space-y-3">
+                <div>
+                  <label className="text-sm font-medium text-gray-700 mb-1.5 block">Start Time</label>
+                  <input
+                    type="datetime-local"
+                    value={toDatetimeLocal(recreateStartTime)}
+                    onChange={(e) => { try { setRecreateStartTime(new Date(e.target.value).toISOString()); } catch {} }}
+                    className="w-full px-3 py-2 bg-white border border-gray-200 rounded-lg text-sm focus:outline-none focus:border-[#0E7B35] focus:ring-1 focus:ring-[#0E7B35]"
+                  />
+                </div>
+                <div>
+                  <label className="text-sm font-medium text-gray-700 mb-1.5 block">Mode</label>
+                  <select
+                    value={recreateMode}
+                    onChange={(e) => setRecreateMode(e.target.value as 'loop' | 'once')}
+                    className="w-full px-3 py-2 bg-white border border-gray-200 rounded-lg text-sm focus:outline-none focus:border-[#0E7B35] focus:ring-1 focus:ring-[#0E7B35]"
+                  >
+                    <option value="loop">Loop</option>
+                    <option value="once">Play Once</option>
+                  </select>
+                </div>
+              </div>
+            </div>
+            <div className="p-4 border-t border-gray-100 bg-gray-50 flex justify-end gap-3">
+              <button onClick={() => setRecreateFromSchedule(null)} className="px-4 py-2 text-sm font-medium text-gray-600 hover:bg-gray-200 bg-white border border-gray-200 rounded-lg transition-colors">Cancel</button>
+              <button onClick={handleRecreate} className="px-5 py-2 text-sm font-medium text-white bg-[#0E7B35] hover:bg-[#0A5E28] rounded-lg transition-colors shadow-sm">
+                Create Schedule
+              </button>
+            </div>
+          </div>
+        </div>,
+        document.body
+      )}
+    </div>
+  );
+}

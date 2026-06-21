@@ -1,0 +1,82 @@
+@import url('https://fonts.googleapis.com/css2?family=Montserrat:ital,wght@0,300..900;1,300..900&family=Poppins:ital,wght@0,300;0,400;0,500;0,600;0,700;1,400&display=swap');
+
+@import "tailwindcss";
+
+@theme {
+  --color-primary: #0E7B35;
+  --color-primary-dark: #0A5E28;
+  --color-secondary: #B9EA38;
+  --color-accent: #FAEF06;
+  --color-muted-teal: #559D71;
+  --color-bg-light: #F9FCFA; /* very soft pastel green/gray */
+  
+  --font-sans: "Poppins", ui-sans-serif, system-ui, sans-serif;
+  --font-heading: "Montserrat", ui-sans-serif, system-ui, sans-serif;
+}
+
+body {
+  font-family: var(--font-sans);
+  background-color: var(--color-bg-light);
+  color: #1E293B; /* slate-800 */
+}
+
+h1, h2, h3, h4, h5, h6, .font-heading {
+  font-family: var(--font-heading);
+}
+
+.gradient-bg {
+  background: linear-gradient(135deg, #95D142, #2F8836);
+}
+
+.card {
+  background: white;
+  border-radius: 20px;
+  box-shadow: 0 4px 24px -4px rgba(14, 123, 53, 0.05);
+  border: 1px solid rgba(85, 157, 113, 0.1);
+}
+
+@keyframes wave {
+  0% { transform: scaleY(1); }
+  50% { transform: scaleY(0.85) scaleX(1.02); }
+  100% { transform: scaleY(1); }
+}
+
+.animate-wave {
+  animation: wave infinite ease-in-out;
+  transform-origin: bottom;
+}
+
+@keyframes wave-horizontal {
+  0% { background-position-x: 0; }
+  100% { background-position-x: 1000px; }
+}
+
+.bg-wave-animation {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 800 88.7'%3E%3Cpath d='M800 56.9c-155.5 0-204.9-50-405.5-49.9-200 0-250 49.9-394.5 49.9v31.8h800v-.2-31.6z' fill='%230E7B35' fill-opacity='0.15'/%3E%3C/svg%3E");
+  background-size: 800px 100%;
+  animation: wave-horizontal 15s linear infinite;
+}
+
+.bg-wave-animation-2 {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 800 88.7'%3E%3Cpath d='M800 16.9c-155.5 0-204.9-10-405.5-9.9-200 0-250 9.9-394.5 9.9v71.8h800v-.2-71.6z' fill='%23B9EA38' fill-opacity='0.15'/%3E%3C/svg%3E");
+  background-size: 800px 100%;
+  animation: wave-horizontal 20s linear infinite reverse;
+}
+
+@keyframes pulse-glow {
+  0%, 100% { box-shadow: 0 0 20px rgba(14,123,53,0.2), 0 0 40px rgba(14,123,53,0.1); }
+  50% { box-shadow: 0 0 30px rgba(14,123,53,0.4), 0 0 60px rgba(14,123,53,0.2); }
+}
+
+.animate-pulse-glow {
+  animation: pulse-glow 3s ease-in-out infinite;
+}
+
+@keyframes pulse-bar {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.7; }
+}
+
+.animate-pulse-bar {
+  animation: pulse-bar 2s ease-in-out infinite;
+}
