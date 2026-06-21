@@ -1,6 +1,6 @@
 # JEMIMA
 
-**Joint Engine Mini Media — Single-screen media scheduling and playback dashboard.**
+**Joint Engine Mini Media — A media scheduling and playback dashboard.**
 
 JEMIMA is an open-source dashboard for scheduling and playing media content on a single screen. Designed for mini-theaters, cafés, retail displays, lobbies, and event spaces. Schedule images, videos, and audio — play them on a dedicated player screen with fullscreen playback and background audio support.
 
@@ -19,8 +19,8 @@ JEMIMA is an open-source dashboard for scheduling and playing media content on a
 ## Getting Started
 
 ```bash
-git clone https://github.com/your-username/jemima
-cd jemima
+git clone https://github.com/niamh-ramadhaan/majorette
+cd majorette
 npm install
 cp .env.example .env.local
 npm run dev
@@ -94,17 +94,6 @@ Open `/player` in a browser to launch the fullscreen player. It auto-plays the a
 
 - **Loop** — Content repeats indefinitely from the start time
 - **Play Once** — Content plays through once, then auto-marks as "Done"
-
-## White-Labeling
-
-To rebrand, edit `.env.local`:
-
-```env
-VITE_APP_NAME=Your Brand Name
-VITE_APP_TAGLINE=Your tagline here
-```
-
-To change the logo, replace `public/logo.png` and `public/favicon.png`.
 
 ## Design System
 
