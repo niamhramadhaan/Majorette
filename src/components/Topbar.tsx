@@ -1,31 +1,143 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { createPortal } from 'react-dom';
-import { Menu, Search, LogOut, ChevronDown, User as UserIcon, X, RefreshCw, CheckCircle2 } from 'lucide-react';
+import { Menu, Search, LogOut, ChevronDown, User as UserIcon, X, CheckCircle2, Film, Music, Image as ImageIcon, Calendar } from 'lucide-react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { getUserName, saveUserName, clearUserName } from '../lib/storage';
+import { cn } from '../lib/utils';
+import { getUserName, saveUserName, clearUserName, STORAGE_KEYS, getThumbnailUrl } from '../lib/storage';
+import type { LocalContent, Schedule } from '../types';
+
+interface SearchResult {
+  id: string;
+  title: string;
+  category: 'media' | 'schedule';
+  subtitle: string;
+  icon: React.ReactNode;
+  thumbnail?: string;
+}
 
 export default function Topbar({ setSidebarOpen }: { setSidebarOpen: (o: boolean) => void }) {
   const location = useLocation();
   const navigate = useNavigate();
   const [isProfileOpen, setIsProfileOpen] = useState(false);
   const [isAccountModalOpen, setIsAccountModalOpen] = useState(false);
-  const [avatarSeed, setAvatarSeed] = useState("JEMIMAAdmin");
   const [searchValue, setSearchValue] = useState("");
+  const [searchResults, setSearchResults] = useState<SearchResult[]>([]);
+  const [isSearchOpen, setIsSearchOpen] = useState(false);
+  const [highlightIndex, setHighlightIndex] = useState(-1);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
   const [isLoggingOut, setIsLoggingOut] = useState(false);
   const [userName, setUserName] = useState(getUserName());
   const [editName, setEditName] = useState(userName);
   const profileRef = useRef<HTMLDivElement>(null);
+  const searchRef = useRef<HTMLDivElement>(null);
+  const debounceRef = useRef<number | null>(null);
   
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
       if (profileRef.current && !profileRef.current.contains(event.target as Node)) {
         setIsProfileOpen(false);
       }
+      if (searchRef.current && !searchRef.current.contains(event.target as Node)) {
+        setIsSearchOpen(false);
+      }
     }
     document.addEventListener("mousedown", handleClickOutside);
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
+
+  useEffect(() => {
+    if (!searchValue.trim()) {
+      setSearchResults([]);
+      setIsSearchOpen(false);
+      return;
+    }
+
+    if (debounceRef.current) clearTimeout(debounceRef.current);
+    debounceRef.current = window.setTimeout(() => {
+      const query = searchValue.toLowerCase().trim();
+      const results: SearchResult[] = [];
+
+      try {
+        const storedContent = localStorage.getItem(STORAGE_KEYS.CONTENT);
+        if (storedContent) {
+          const content: LocalContent[] = JSON.parse(storedContent);
+          const mediaMatches = content
+            .filter(item => item.title.toLowerCase().includes(query) || item.fileName.toLowerCase().includes(query))
+            .slice(0, 5)
+            .map(item => ({
+              id: item.id,
+              title: item.title,
+              category: 'media' as const,
+              subtitle: item.type === 'video' ? 'Video' : item.type === 'audio' ? 'Audio' : 'Image',
+              icon: item.type === 'video' ? <Film className="w-4 h-4 text-purple-500" /> : item.type === 'audio' ? <Music className="w-4 h-4 text-blue-500" /> : <ImageIcon className="w-4 h-4 text-green-500" />,
+              thumbnail: getThumbnailUrl(item) || undefined,
+            }));
+          results.push(...mediaMatches);
+        }
+      } catch { /* ignore */ }
+
+      try {
+        const storedSchedules = localStorage.getItem(STORAGE_KEYS.SCHEDULES);
+        if (storedSchedules) {
+          const schedules: Schedule[] = JSON.parse(storedSchedules);
+          const scheduleMatches = schedules
+            .filter(s => s.name.toLowerCase().includes(query))
+            .slice(0, 3)
+            .map(s => ({
+              id: s.id,
+              title: s.name,
+              category: 'schedule' as const,
+              subtitle: s.status === 'done' ? 'Done' : s.mode === 'loop' ? 'Looping' : 'Once',
+              icon: <Calendar className="w-4 h-4 text-[#0E7B35]" />,
+            }));
+          results.push(...scheduleMatches);
+        }
+      } catch { /* ignore */ }
+
+      setSearchResults(results);
+      setIsSearchOpen(results.length > 0);
+      setHighlightIndex(-1);
+    }, 200);
+
+    return () => { if (debounceRef.current) clearTimeout(debounceRef.current); };
+  }, [searchValue]);
+
+  const handleSearchSelect = (result: SearchResult) => {
+    if (result.category === 'media') {
+      navigate('/films/' + result.id);
+    } else {
+      navigate('/schedule');
+    }
+    setSearchValue("");
+    setIsSearchOpen(false);
+  };
+
+  const handleSearchKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Escape') {
+      setIsSearchOpen(false);
+      return;
+    }
+    if (e.key === 'ArrowDown') {
+      e.preventDefault();
+      setHighlightIndex(prev => Math.min(prev + 1, searchResults.length - 1));
+      return;
+    }
+    if (e.key === 'ArrowUp') {
+      e.preventDefault();
+      setHighlightIndex(prev => Math.max(prev - 1, -1));
+      return;
+    }
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      if (highlightIndex >= 0 && highlightIndex < searchResults.length) {
+        handleSearchSelect(searchResults[highlightIndex]);
+      } else if (searchValue.trim()) {
+        navigate(`/films?search=${encodeURIComponent(searchValue.trim())}`);
+        setSearchValue("");
+        setIsSearchOpen(false);
+      }
+    }
+  };
 
   useEffect(() => {
     setEditName(userName);
@@ -41,16 +153,10 @@ export default function Topbar({ setSidebarOpen }: { setSidebarOpen: (o: boolean
     return '';
   };
 
-  const handleSearch = (e: React.KeyboardEvent<HTMLInputElement>) => {
-    if (e.key === 'Enter' && searchValue.trim()) {
-      navigate(`/films?search=${encodeURIComponent(searchValue.trim())}`);
-      setSearchValue("");
-    }
-  };
-
   const handleLogout = () => {
     setIsLoggingOut(true);
     clearUserName();
+    localStorage.clear();
     navigate('/login', { replace: true });
   };
 
@@ -59,7 +165,6 @@ export default function Topbar({ setSidebarOpen }: { setSidebarOpen: (o: boolean
     if (trimmed.length >= 2) {
       saveUserName(trimmed);
       setUserName(trimmed);
-      setAvatarSeed(trimmed);
       setIsAccountModalOpen(false);
       setToastMessage('Profile updated');
       setTimeout(() => setToastMessage(null), 3000);
@@ -97,17 +202,80 @@ export default function Topbar({ setSidebarOpen }: { setSidebarOpen: (o: boolean
       </div>
 
       <div className="flex items-center gap-4 lg:gap-6">
-        <div className="relative hidden md:block">
+        <div className="relative hidden md:block" ref={searchRef}>
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
           <input 
             id="global-search"
             type="text" 
-            placeholder="Search media... (Ctrl+K)" 
+            placeholder="Search media & schedules..." 
             value={searchValue}
             onChange={(e) => setSearchValue(e.target.value)}
-            onKeyDown={handleSearch}
+            onKeyDown={handleSearchKeyDown}
+            onFocus={() => { if (searchResults.length > 0) setIsSearchOpen(true); }}
             className="pl-9 pr-4 py-2 bg-white border border-gray-200 rounded-full text-sm focus:outline-none focus:border-[#0E7B35] focus:ring-1 focus:ring-[#0E7B35] w-64 transition-all"
           />
+          {isSearchOpen && searchResults.length > 0 && (
+            <div className="absolute top-full left-0 right-0 mt-2 bg-white rounded-xl shadow-xl border border-gray-100 py-2 max-h-80 overflow-y-auto z-50">
+              {(() => {
+                const mediaResults = searchResults.filter(r => r.category === 'media');
+                const scheduleResults = searchResults.filter(r => r.category === 'schedule');
+                return (
+                  <>
+                    {mediaResults.length > 0 && (
+                      <>
+                        <p className="px-4 py-1.5 text-[10px] font-semibold text-gray-400 uppercase tracking-wider">Media</p>
+                        {mediaResults.map((result, i) => {
+                          const globalIndex = searchResults.indexOf(result);
+                          return (
+                            <button key={result.id}
+                              onClick={() => handleSearchSelect(result)}
+                              className={cn("w-full flex items-center gap-3 px-4 py-2 text-left transition-colors cursor-pointer",
+                                highlightIndex === globalIndex ? "bg-[#0E7B35]/5" : "hover:bg-gray-50")}>
+                              {result.thumbnail ? (
+                                <img src={result.thumbnail} alt="" className="w-8 h-6 rounded object-cover flex-shrink-0" />
+                              ) : (
+                                <div className="w-8 h-6 bg-gray-100 rounded flex items-center justify-center flex-shrink-0">{result.icon}</div>
+                              )}
+                              <div className="flex-1 min-w-0">
+                                <p className="text-sm font-medium text-gray-800 truncate">{result.title}</p>
+                              </div>
+                              <span className={cn("px-1.5 py-0.5 rounded text-[10px] font-semibold uppercase flex-shrink-0",
+                                result.subtitle === 'Video' ? "bg-purple-50 text-purple-600" : result.subtitle === 'Audio' ? "bg-blue-50 text-blue-600" : "bg-green-50 text-green-600")}>
+                                {result.subtitle}
+                              </span>
+                            </button>
+                          );
+                        })}
+                      </>
+                    )}
+                    {scheduleResults.length > 0 && (
+                      <>
+                        <p className="px-4 py-1.5 text-[10px] font-semibold text-gray-400 uppercase tracking-wider border-t border-gray-100 mt-1 pt-2">Schedules</p>
+                        {scheduleResults.map((result) => {
+                          const globalIndex = searchResults.indexOf(result);
+                          return (
+                            <button key={result.id}
+                              onClick={() => handleSearchSelect(result)}
+                              className={cn("w-full flex items-center gap-3 px-4 py-2 text-left transition-colors cursor-pointer",
+                                highlightIndex === globalIndex ? "bg-[#0E7B35]/5" : "hover:bg-gray-50")}>
+                              <div className="w-8 h-6 bg-[#0E7B35]/10 rounded flex items-center justify-center flex-shrink-0">{result.icon}</div>
+                              <div className="flex-1 min-w-0">
+                                <p className="text-sm font-medium text-gray-800 truncate">{result.title}</p>
+                              </div>
+                              <span className={cn("px-1.5 py-0.5 rounded text-[10px] font-semibold uppercase flex-shrink-0",
+                                result.subtitle === 'Done' ? "bg-gray-100 text-gray-500" : result.subtitle === 'Looping' ? "bg-blue-50 text-blue-600" : "bg-yellow-50 text-yellow-600")}>
+                                {result.subtitle}
+                              </span>
+                            </button>
+                          );
+                        })}
+                      </>
+                    )}
+                  </>
+                );
+              })()}
+            </div>
+          )}
         </div>
         
         <div className="h-8 w-px bg-gray-200 hidden sm:block"></div>
@@ -122,9 +290,9 @@ export default function Topbar({ setSidebarOpen }: { setSidebarOpen: (o: boolean
               <p className="text-sm font-medium text-gray-700">{userName || 'User'}</p>
             </div>
             <img 
-              src={`https://api.dicebear.com/7.x/notionists/svg?seed=${avatarSeed}`} 
-              alt="User avatar" 
-              className="w-10 h-10 rounded-full bg-[#B9EA38]/20 border border-[#B9EA38]/50"
+              src="/logo.png" 
+              alt="JEMIMA" 
+              className="w-10 h-10 rounded-full bg-[#B9EA38]/20 border border-[#B9EA38]/50 object-cover"
             />
             <ChevronDown className="w-4 h-4 text-gray-400 hidden sm:block" />
           </button>
@@ -173,15 +341,12 @@ export default function Topbar({ setSidebarOpen }: { setSidebarOpen: (o: boolean
             </div>
             <div className="p-6 space-y-5 overflow-y-auto max-h-[70vh]">
                <div className="flex items-center gap-4">
-                 <div className="relative group cursor-pointer" onClick={() => setAvatarSeed(Math.random().toString(36).substring(7))}>
-                   <img src={`https://api.dicebear.com/7.x/notionists/svg?seed=${avatarSeed}`} alt="Avatar" className="w-16 h-16 rounded-full bg-[#B9EA38]/20 border border-[#B9EA38]/50 group-hover:opacity-75 transition-opacity" />
-                   <div className="absolute inset-0 flex flex-col items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
-                     <RefreshCw className="w-5 h-5 text-gray-700 bg-white/80 rounded-full p-1 shadow-sm" />
-                   </div>
+                 <div className="relative">
+                   <img src="/logo.png" alt="JEMIMA" className="w-16 h-16 rounded-full bg-[#B9EA38]/20 border border-[#B9EA38]/50 object-cover" />
                  </div>
                  <div>
                    <h4 className="font-medium text-gray-900">{userName || 'User'}</h4>
-                   <p className="text-sm text-gray-500">Click avatar to randomize</p>
+                   <p className="text-sm text-gray-500">JEMIMA Dashboard</p>
                  </div>
                </div>
                <div className="space-y-4 pt-4 border-t border-gray-100">

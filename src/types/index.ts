@@ -121,11 +121,27 @@ export interface Schedule {
   updatedAt: string;
 }
 
+export interface ScreenConfig {
+  id: string;
+  name: string;
+  playerUrl: string;
+  venueId: string;
+  muteConfigOverride?: PlayerMuteConfig;
+  createdAt: string;
+}
+
 export interface Venue {
   id: string;
   name: string;
-  screens: number;
+  screens: ScreenConfig[];
   createdAt: string;
+}
+
+export interface PlayerMuteConfig {
+  videoNoOverlay: boolean;
+  audioNoOverlay: boolean;
+  videoWithOverlay: boolean;
+  image: boolean;
 }
 
 export interface AppSettings {
@@ -133,6 +149,7 @@ export interface AppSettings {
   venueName: string;
   timezone: string;
   contentRoot: string;
+  playerMuteConfig: PlayerMuteConfig;
 }
 
 export interface ActivityLog {

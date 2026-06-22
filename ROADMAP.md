@@ -1,6 +1,6 @@
 # JEMIMA Dashboard — Build Summary & Roadmap
 
-## Current Build Status (v1.0.0)
+## Current Build Status (v1.1.0)
 
 ### Architecture
 - **Frontend:** React 19 + TypeScript + Vite + Tailwind CSS 4
@@ -15,15 +15,20 @@
 
 ### CMS / Dashboard
 - [x] Now Playing — real-time current item + progress bar synced with Player
+- [x] Last Play — shows active schedule with running time or last completed schedule
 - [x] Up Next — shows next items in queue
 - [x] Skip prev/next — cross-tab (localStorage) + same-tab (CustomEvent)
 - [x] Pause/Resume — toggle playback, freezes elapsed time, syncs with Player
 - [x] Force Stop (Done) — modal confirmation, persists 'done' status
-- [x] Play Again — recreate modal (new start time, same content)
-- [x] Quick Actions, Stats, Recent Activity, Last Played widgets
+- [x] Play Again — recreate modal (new start time, same content, past time validation)
+- [x] Quick Actions, Stats, Last Played, Recent Activity, Top Played Media widgets
 - [x] Toast messages on done/create
 - [x] Click animation on control buttons (active:scale-90)
 - [x] Progress bar pulse during playback
+- [x] Upcoming schedule preview (< 10 min) — first media thumbnail + countdown + Open Player CTA
+- [x] Real-time clock HH:MM:SS with time-based animated icon (sunrise/sun/sunset/moon)
+- [x] Pulsing seconds on countdown when < 20 seconds
+- [x] Empty state CTA → "Create a Schedule"
 
 ### Schedules
 - [x] Create/edit/delete with drag-and-drop ordering
@@ -36,6 +41,9 @@
 - [x] Default sort: Newest First
 - [x] Disable Edit/View on done schedules
 - [x] Play Again from Schedule page (same modal as Dashboard)
+- [x] Past time prevention — `min` attr on picker + validation on submit
+- [x] Now time allowed — can schedule to start immediately
+- [x] 9 items per page pagination
 
 ### Player
 - [x] Full-screen media player with keyboard shortcuts (Space, F, M)
@@ -48,8 +56,9 @@
 - [x] Error handling — error overlay + auto-skip countdown
 - [x] Upcoming schedule countdown screen
 - [x] Done screen on auto-complete or manual done
-- [x] Default muted — tooltip + pulse on mute button when bg audio present
-- [x] Auto-show controls (5s) when bg audio starts and is muted
+- [x] Configurable mute system — per-scenario mute matrix in Settings
+- [x] Auto-mute first item per schedule, then user control
+- [x] Background audio always plays (decoupled from mute state)
 
 ### Background Audio
 - [x] Bidirectional detection (audio before or after visual item)
@@ -59,6 +68,15 @@
 - [x] Preview button on audio items in Show Builder
 - [x] Rename: Overlay/Main → Background/Standalone
 - [x] Helper text for standalone audio items
+
+### Locations / Screens
+- [x] Venue management — name edit, venue ID display
+- [x] Screen system — add/delete screens with player URLs
+- [x] Screen Detail page — name edit, player URL copy, Open Player, delete with confirmation
+- [x] Restore default screen — when all screens deleted
+- [x] Delete confirmation modal — prevents accidental screen deletion
+- [x] Screen data model (ScreenConfig) — scalable for future per-screen mute config override
+- [x] Venue migration — old `screens: number` → `screens: ScreenConfig[]`
 
 ### Cross-Tab Communication
 - [x] Skip signals: CustomEvent (same-tab) + localStorage (cross-tab)
@@ -75,6 +93,15 @@
 ### Other
 - [x] Name-only login + 3-step onboarding
 - [x] Media library: browse, ingest, detail view, search
+- [x] Media bulk delete — checklist mode with selection + confirmation modal
+- [x] FilmDetail — clickable cards, reads from LocalContent (not mock data), video/audio preview
+- [x] Topbar global search — live dropdown with media + schedule results, keyboard nav
+- [x] Settings edit mode — locked by default, Edit/Save/Cancel flow
+- [x] Player mute config — 4-scenario matrix (video, audio, video+overlay, image)
+- [x] Schedule status filter fix — moved getEffectiveStatus before sortedSchedules
+- [x] File path encoding fix — encodeURIComponent for special characters in filenames
+- [x] Logout clears all localStorage data
+- [x] Avatar uses Jemima logo (not dicebear API)
 
 ---
 
@@ -181,6 +208,45 @@
 
 ---
 
+### Session 2 — v1.1.0 (2026-06-22)
+
+**Objective:** UX polish, bug fixes, configurable player settings, screen management, and dashboard enhancements.
+
+**Critical Bug Fixes (7):**
+1. Schedule status filter — `getEffectiveStatus` was called before declaration (temporal dead zone), moved above `sortedSchedules`
+2. File path encoding — `resolveFilePath` didn't encode special characters (`#`, Japanese chars), added `encodeURIComponent`
+3. Films checklist delete popup — modal triggered on selection instead of explicit delete button click, added `showBulkDeleteConfirm` state
+4. Films checkbox double-toggle — click bubbled to card onClick, added `e.stopPropagation()`
+5. Play Again modal typing block — real-time validation on `onChange` prevented typing, moved validation to submit
+6. ShowBuilder start time typing block — same fix, removed real-time validation from `onChange`
+7. ScreenDetail modal overlay — modal constrained by parent container, wrapped in `createPortal`
+
+**Features Added (12):**
+1. Player mute config — 4-scenario matrix in Settings (video, audio, video+overlay, image)
+2. Auto-mute system — first item per schedule uses config, then user control
+3. Background audio decoupled — `bgAudioRef` always unmuted regardless of mute state
+4. Settings edit mode — locked by default, Edit/Save/Cancel flow with draft state
+5. Screen management — add/delete screens, ScreenDetail page, restore default screen
+6. Topbar global search — live dropdown with media + schedule results, keyboard navigation, debounce
+7. Dashboard Last Play widget — active schedule running time or last completed schedule
+8. Dashboard Top Played Media — derived from schedule usage frequency
+9. Dashboard time icon — animated SVG (sunrise/sun/sunset/moon) based on time of day
+10. Dashboard clock HH:MM:SS — with pulsing seconds on countdown < 20s
+11. Upcoming schedule preview — thumbnail + countdown + Open Player CTA when < 10 min
+12. Media bulk delete — checklist mode with select all + confirmation modal
+
+**UX Polish (6):**
+1. Empty state CTA → "Create a Schedule" instead of "Add content"
+2. Past time prevention on schedule creation — `min` attr + validation on submit
+3. Now time allowed — can schedule to start immediately
+4. Schedule pagination 6 → 9 items per page
+5. Logout clears all localStorage data (true logout)
+6. Avatar uses Jemima logo instead of dicebear API
+
+**Files changed:** Dashboard.tsx, Player.tsx, Schedule.tsx, ShowBuilder.tsx, Films.tsx, FilmDetail.tsx, ScreenDetail.tsx, Locations.tsx, Settings.tsx, Topbar.tsx, storage.ts, types/index.ts, index.css, App.tsx, ROADMAP.md
+
+---
+
 ## File Structure
 
 ```
@@ -209,6 +275,7 @@ jemima-dashboard/
 │   │   ├── Player.tsx
 │   │   ├── QuickStart.tsx
 │   │   ├── Schedule.tsx
+│   │   ├── ScreenDetail.tsx
 │   │   ├── Settings.tsx
 │   │   └── ShowBuilder.tsx
 │   ├── types/

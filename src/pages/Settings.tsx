@@ -1,11 +1,13 @@
 ﻿import React, { useState, useEffect } from 'react';
-import { Save, Server, CheckCircle2, FolderOpen, AlertCircle, Wifi, WifiOff } from 'lucide-react';
+import { Save, Server, CheckCircle2, FolderOpen, AlertCircle, Wifi, WifiOff, Volume2, VolumeX, Film, Music, Image as ImageIcon, Pencil, X } from 'lucide-react';
 import { cn } from '../lib/utils';
 import { getSettings, saveSettings, addActivity, checkServerHealth, type ServerHealth } from '../lib/storage';
 import type { AppSettings } from '../types';
 
 export default function Settings() {
   const [settings, setSettings] = useState<AppSettings>(getSettings());
+  const [isEditMode, setIsEditMode] = useState(false);
+  const [draftSettings, setDraftSettings] = useState<AppSettings>(settings);
   const [isSaving, setIsSaving] = useState(false);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
   const [serverHealth, setServerHealth] = useState<ServerHealth | null>(null);
@@ -17,11 +19,23 @@ export default function Settings() {
     setServerHealth(health);
   };
 
+  const handleEnterEdit = () => {
+    setDraftSettings(settings);
+    setIsEditMode(true);
+  };
+
+  const handleCancelEdit = () => {
+    setDraftSettings(settings);
+    setIsEditMode(false);
+  };
+
   const handleSave = () => {
     setIsSaving(true);
-    saveSettings(settings);
+    saveSettings(draftSettings);
+    setSettings(draftSettings);
     addActivity({ message: 'Settings saved', type: 'success' });
     setIsSaving(false);
+    setIsEditMode(false);
     setToastMessage('Settings saved successfully');
     setTimeout(() => setToastMessage(null), 3000);
     checkHealth();
@@ -31,18 +45,35 @@ export default function Settings() {
     await checkHealth();
   };
 
+  const current = isEditMode ? draftSettings : settings;
+
   return (
     <div className="space-y-6 flex flex-col min-h-0">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <h2 className="text-xl font-heading font-semibold text-gray-900 tracking-tight">Settings</h2>
-          <p className="text-sm text-gray-500">Manage your display configuration.</p>
+          <p className="text-sm text-gray-500">
+            {isEditMode ? 'Editing — make your changes then save.' : 'View your display configuration.'}
+          </p>
         </div>
-        <button onClick={handleSave} disabled={isSaving}
-          className="px-4 py-2 bg-[#0E7B35] text-white rounded-xl text-sm font-bold transition-all shadow-lg shadow-green-100 hover:bg-[#0A5E28] hover:shadow-xl active:scale-95 flex items-center justify-center gap-2 disabled:opacity-70 disabled:cursor-not-allowed">
-          {isSaving ? <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" /> : <Save className="w-4 h-4" />}
-          {isSaving ? 'Saving...' : 'Save Changes'}
-        </button>
+        {isEditMode ? (
+          <div className="flex items-center gap-2">
+            <button onClick={handleCancelEdit}
+              className="px-4 py-2 bg-white border border-gray-200 text-gray-700 rounded-xl text-sm font-medium transition-all hover:bg-gray-50 flex items-center justify-center gap-2 cursor-pointer">
+              <X className="w-4 h-4" /> Cancel
+            </button>
+            <button onClick={handleSave} disabled={isSaving}
+              className="px-4 py-2 bg-[#0E7B35] text-white rounded-xl text-sm font-bold transition-all shadow-lg shadow-green-100 hover:bg-[#0A5E28] hover:shadow-xl active:scale-95 flex items-center justify-center gap-2 disabled:opacity-70 disabled:cursor-not-allowed cursor-pointer">
+              {isSaving ? <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" /> : <Save className="w-4 h-4" />}
+              {isSaving ? 'Saving...' : 'Save Changes'}
+            </button>
+          </div>
+        ) : (
+          <button onClick={handleEnterEdit}
+            className="px-4 py-2 bg-white border border-gray-200 text-gray-700 rounded-xl text-sm font-medium transition-all hover:bg-gray-50 hover:shadow-md active:scale-95 flex items-center justify-center gap-2 cursor-pointer">
+            <Pencil className="w-4 h-4" /> Edit
+          </button>
+        )}
       </div>
 
       {serverHealth && (
@@ -81,13 +112,23 @@ export default function Settings() {
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Venue Name</label>
-                  <input type="text" value={settings.venueName} onChange={(e) => setSettings({ ...settings, venueName: e.target.value })}
-                    className="w-full bg-gray-50 border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-[#0E7B35] focus:border-[#0E7B35]" />
+                  <input type="text" value={current.venueName}
+                    readOnly={!isEditMode}
+                    onChange={(e) => setDraftSettings({ ...draftSettings, venueName: e.target.value })}
+                    className={cn("w-full rounded-lg px-3 py-2 text-sm transition-colors",
+                      isEditMode
+                        ? "bg-white border border-gray-200 focus:outline-none focus:ring-1 focus:ring-[#0E7B35] focus:border-[#0E7B35]"
+                        : "bg-gray-100 border border-gray-200 text-gray-600 cursor-not-allowed")} />
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Timezone</label>
-                  <select value={settings.timezone} onChange={(e) => setSettings({ ...settings, timezone: e.target.value })}
-                    className="w-full bg-gray-50 border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-[#0E7B35] focus:border-[#0E7B35]">
+                  <select value={current.timezone}
+                    disabled={!isEditMode}
+                    onChange={(e) => setDraftSettings({ ...draftSettings, timezone: e.target.value })}
+                    className={cn("w-full rounded-lg px-3 py-2 text-sm transition-colors",
+                      isEditMode
+                        ? "bg-white border border-gray-200 focus:outline-none focus:ring-1 focus:ring-[#0E7B35] focus:border-[#0E7B35]"
+                        : "bg-gray-100 border border-gray-200 text-gray-600 cursor-not-allowed")}>
                     <option value="UTC">UTC</option>
                     <option value="UTC+7">UTC+7 (WIB)</option>
                     <option value="UTC+8">UTC+8 (WITA)</option>
@@ -116,8 +157,14 @@ export default function Settings() {
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Content Folder Path</label>
                 <div className="flex gap-2">
-                  <input type="text" value={settings.contentRoot} onChange={(e) => setSettings({ ...settings, contentRoot: e.target.value })}
-                    placeholder="D:\JEMIMA" className="flex-1 bg-gray-50 border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-[#0E7B35] focus:border-[#0E7B35] font-mono" />
+                  <input type="text" value={current.contentRoot}
+                    readOnly={!isEditMode}
+                    onChange={(e) => setDraftSettings({ ...draftSettings, contentRoot: e.target.value })}
+                    placeholder="D:\JEMIMA"
+                    className={cn("flex-1 rounded-lg px-3 py-2 text-sm font-mono transition-colors",
+                      isEditMode
+                        ? "bg-white border border-gray-200 focus:outline-none focus:ring-1 focus:ring-[#0E7B35] focus:border-[#0E7B35]"
+                        : "bg-gray-100 border border-gray-200 text-gray-600 cursor-not-allowed")} />
                   <button type="button" onClick={handleValidatePath}
                     className="px-4 py-2 bg-white border border-gray-200 text-gray-700 hover:bg-gray-50 rounded-lg text-sm font-medium transition-colors flex items-center gap-2">
                     <Wifi className="w-4 h-4" /> Validate
@@ -133,11 +180,54 @@ export default function Settings() {
           <div className="h-px bg-gray-100 my-6"></div>
 
           <div>
-            <h3 className="text-lg font-heading font-semibold text-gray-900 mb-4">Player</h3>
-            <div className="p-4 bg-gray-50 rounded-xl">
+            <h3 className="text-lg font-heading font-semibold text-gray-900 mb-1">Player</h3>
+            <p className="text-xs text-gray-500 mb-4">Configure first-play audio behavior. After the first item, you control mute manually.</p>
+
+            <div className="p-4 bg-gray-50 rounded-xl mb-4">
               <p className="text-sm text-gray-600">
                 Open the player on your display screen by navigating to <code className="bg-gray-200 px-1.5 py-0.5 rounded text-xs font-mono">/player</code> in a browser. The player will automatically play your active schedule.
               </p>
+            </div>
+
+            <div className="space-y-3">
+              {([
+                { key: 'videoNoOverlay' as const, icon: Film, label: 'Video', desc: 'No background audio' },
+                { key: 'audioNoOverlay' as const, icon: Music, label: 'Audio', desc: 'No background audio' },
+                { key: 'videoWithOverlay' as const, icon: Film, label: 'Video + Overlay', desc: 'With background audio' },
+                { key: 'image' as const, icon: ImageIcon, label: 'Image', desc: 'With or without background audio' },
+              ]).map(({ key, icon: Icon, label, desc }) => {
+                const isMuted = current.playerMuteConfig[key];
+                return (
+                  <div key={key} className={cn("flex items-center justify-between p-3 rounded-lg border transition-colors",
+                    isEditMode ? "bg-white border-gray-200" : "bg-gray-100 border-gray-200")}>
+                    <div className="flex items-center gap-3">
+                      <Icon className={cn("w-4 h-4", isEditMode ? "text-gray-400" : "text-gray-300")} />
+                      <div>
+                        <p className={cn("text-sm font-medium", isEditMode ? "text-gray-700" : "text-gray-500")}>{label}</p>
+                        <p className={cn("text-[11px]", isEditMode ? "text-gray-400" : "text-gray-300")}>{desc}</p>
+                      </div>
+                    </div>
+                    <button
+                      type="button"
+                      disabled={!isEditMode}
+                      onClick={() => setDraftSettings({
+                        ...draftSettings,
+                        playerMuteConfig: { ...draftSettings.playerMuteConfig, [key]: !isMuted }
+                      })}
+                      className={cn(
+                        "flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors border",
+                        !isEditMode && "cursor-not-allowed opacity-50",
+                        isMuted
+                          ? "bg-red-50 text-red-600 border-red-200 " + (isEditMode ? "hover:bg-red-100" : "")
+                          : "bg-green-50 text-green-600 border-green-200 " + (isEditMode ? "hover:bg-green-100" : "")
+                      )}
+                    >
+                      {isMuted ? <VolumeX className="w-3.5 h-3.5" /> : <Volume2 className="w-3.5 h-3.5" />}
+                      {isMuted ? 'Muted' : 'Unmuted'}
+                    </button>
+                  </div>
+                );
+              })}
             </div>
           </div>
         </div>

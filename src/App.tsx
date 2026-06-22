@@ -12,6 +12,7 @@ import Login from './pages/Login';
 import Settings from './pages/Settings';
 import QuickStart from './pages/QuickStart';
 import Player from './pages/Player';
+import ScreenDetail from './pages/ScreenDetail';
 import { getSettings, getUserName } from './lib/storage';
 
 function RequireAuth({ children }: { children: React.ReactNode }) {
@@ -51,7 +52,10 @@ function AppContent() {
       }>
         <Route index element={<Navigate to="/dashboard" replace />} />
         <Route path="dashboard" element={<Dashboard />} />
-        <Route path="locations" element={<Locations />} />
+        <Route path="locations">
+            <Route index element={<Locations />} />
+            <Route path="screen/:id" element={<ScreenDetail />} />
+        </Route>
         <Route path="films">
             <Route index element={<Films />} />
             <Route path="ingest" element={<FilmIngest />} />

@@ -1,21 +1,25 @@
 ﻿import React, { useState, useEffect } from 'react';
-import { UploadCloud, Search, CheckCircle2, Trash2, Image as ImageIcon, Music, Clock, Film } from 'lucide-react';
+import { UploadCloud, Search, CheckCircle2, Trash2, Image as ImageIcon, Music, Clock, Film, CheckSquare } from 'lucide-react';
 import { createPortal } from 'react-dom';
 import { cn } from '../lib/utils';
 import { Pagination } from '../components/Pagination';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { STORAGE_KEYS, addActivity, getThumbnailUrl } from '../lib/storage';
 import type { LocalContent } from '../types';
 
 export default function Films() {
   const navigate = useNavigate();
-  const [search, setSearch] = useState('');
+  const [searchParams, setSearchParams] = useSearchParams();
+  const [search, setSearch] = useState(() => searchParams.get('search') || '');
   const [content, setContent] = useState<LocalContent[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [currentPage, setCurrentPage] = useState(1);
   const [activeTab, setActiveTab] = useState('All');
   const [toastMessage, setToastMessage] = useState<string | null>(null);
   const [itemToDelete, setItemToDelete] = useState<LocalContent | null>(null);
+  const [selectedFilms, setSelectedFilms] = useState<string[]>([]);
+  const [showChecklist, setShowChecklist] = useState(false);
+  const [showBulkDeleteConfirm, setShowBulkDeleteConfirm] = useState(false);
 
   useEffect(() => { loadContent(); }, []);
 
@@ -57,6 +61,28 @@ export default function Films() {
     addActivity({ message: 'Deleted content: ' + itemToDelete.title, type: 'info' });
   };
 
+  const handleBulkDelete = () => {
+    const count = selectedFilms.length;
+    const newContent = content.filter(c => !selectedFilms.includes(c.id));
+    saveContent(newContent);
+    setSelectedFilms([]);
+    setShowChecklist(false);
+    handleAction(`Deleted ${count} item${count > 1 ? 's' : ''}`);
+    addActivity({ message: `Deleted ${count} content items`, type: 'info' });
+  };
+
+  const handleToggleSelect = (id: string) => {
+    setSelectedFilms(prev => prev.includes(id) ? prev.filter(i => i !== id) : [...prev, id]);
+  };
+
+  const handleToggleSelectAll = () => {
+    if (selectedFilms.length === filteredContent.length) {
+      setSelectedFilms([]);
+    } else {
+      setSelectedFilms(filteredContent.map(s => s.id));
+    }
+  };
+
   const getContentIcon = (type: string) => {
     switch (type) {
       case 'video': return <Film className="w-6 h-6 text-gray-400" />;
@@ -71,13 +97,33 @@ export default function Films() {
         <div className="flex items-center gap-3 w-full sm:w-auto">
           <div className="relative flex-1 sm:flex-none">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-            <input type="text" placeholder="Search by title..." value={search} onChange={(e) => { setSearch(e.target.value); setCurrentPage(1); }}
+            <input type="text" placeholder="Search by title..." value={search} onChange={(e) => {
+              const val = e.target.value;
+              setSearch(val);
+              setCurrentPage(1);
+              if (val) setSearchParams({ search: val }, { replace: true });
+              else setSearchParams({}, { replace: true });
+            }}
               className="pl-9 pr-4 py-2 bg-white border border-gray-200 rounded-lg text-sm w-full sm:w-64 focus:outline-none focus:border-[#0E7B35] focus:ring-1 focus:ring-[#0E7B35]" />
           </div>
         </div>
-        <button onClick={() => navigate('/films/ingest')} className="flex items-center justify-center gap-2 bg-[#0E7B35] hover:bg-[#0A5E28] text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors cursor-pointer">
-          <UploadCloud className="w-4 h-4" /> Add Content
-        </button>
+        <div className="flex items-center gap-2">
+          {selectedFilms.length > 0 && showChecklist && (
+            <button onClick={() => setShowBulkDeleteConfirm(true)} className="flex items-center justify-center gap-2 bg-red-50 text-red-600 border border-red-100 hover:bg-red-100 px-4 py-2 rounded-lg text-sm font-medium transition-colors cursor-pointer">
+              <Trash2 className="w-4 h-4" /> Delete ({selectedFilms.length})
+            </button>
+          )}
+          {content.length > 0 && (
+            <button onClick={() => { setShowChecklist(!showChecklist); if (showChecklist) setSelectedFilms([]); }}
+              className={cn("flex items-center justify-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors cursor-pointer",
+                showChecklist ? "bg-[#0E7B35]/10 text-[#0E7B35] border border-[#0E7B35]/20" : "bg-white border border-gray-200 hover:bg-gray-50 text-gray-700")}>
+              <CheckSquare className="w-4 h-4" /> Checklist
+            </button>
+          )}
+          <button onClick={() => navigate('/films/ingest')} className="flex items-center justify-center gap-2 bg-[#0E7B35] hover:bg-[#0A5E28] text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors cursor-pointer">
+            <UploadCloud className="w-4 h-4" /> Add Content
+          </button>
+        </div>
       </div>
 
       {toastMessage && (
@@ -113,11 +159,20 @@ export default function Films() {
           <div className="flex-1 overflow-y-auto mb-4">
             <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4 pb-4">
               {filteredContent.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage).map((item) => (
-                <div key={item.id} className="card p-5 group hover:border-[#B9EA38]/50 transition-colors flex flex-col h-full relative overflow-hidden">
-                  <div className="absolute top-4 right-4 flex items-center gap-1.5 opacity-0 group-hover:opacity-100 transition-opacity z-10">
-                    <button onClick={(e) => { e.stopPropagation(); setItemToDelete(item); }} className="w-7 h-7 flex items-center justify-center bg-white text-gray-500 hover:text-red-500 rounded-md shadow-sm border border-gray-200 transition-colors" title="Delete">
-                      <Trash2 className="w-3.5 h-3.5" />
-                    </button>
+                <div key={item.id} className={cn("card p-5 group hover:border-[#B9EA38]/50 transition-colors flex flex-col h-full relative overflow-hidden cursor-pointer",
+                  showChecklist && selectedFilms.includes(item.id) && "border-[#0E7B35] bg-[#0E7B35]/5")}
+                  onClick={() => showChecklist ? handleToggleSelect(item.id) : navigate('/films/' + item.id)}>
+                  <div className="absolute top-4 right-4 flex items-center gap-1.5 z-10">
+                    {showChecklist ? (
+                      <input type="checkbox" className="rounded border-gray-300 text-[#0E7B35] focus:ring-[#0E7B35] cursor-pointer"
+                        checked={selectedFilms.includes(item.id)} onChange={(e) => { e.stopPropagation(); handleToggleSelect(item.id); }} />
+                    ) : (
+                      <div className="opacity-0 group-hover:opacity-100 transition-opacity">
+                        <button onClick={(e) => { e.stopPropagation(); setItemToDelete(item); }} className="w-7 h-7 flex items-center justify-center bg-white text-gray-500 hover:text-red-500 rounded-md shadow-sm border border-gray-200 transition-colors" title="Delete">
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
+                    )}
                   </div>
                   <div className="flex items-start gap-4 mb-5 flex-1 min-w-0">
                     <div className="w-16 h-12 bg-gray-100 rounded-md flex items-center justify-center flex-shrink-0 border border-gray-200 overflow-hidden">
@@ -151,15 +206,22 @@ export default function Films() {
         </>
       )}
 
-      {itemToDelete && createPortal(
+      {(itemToDelete || showBulkDeleteConfirm) && createPortal(
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-gray-900/50 backdrop-blur-sm animate-in fade-in">
           <div className="bg-white rounded-xl shadow-2xl w-full max-w-sm overflow-hidden flex flex-col animate-in slide-in-from-bottom-4 text-center p-6">
             <div className="w-12 h-12 rounded-full bg-red-50 flex items-center justify-center mx-auto mb-4 border border-red-100"><Trash2 className="w-6 h-6 text-red-500" /></div>
-            <h3 className="font-heading font-semibold text-lg text-gray-900 mb-2">Delete Content</h3>
-            <p className="text-gray-500 text-sm mb-6">Are you sure you want to delete <span className="font-semibold text-gray-700">"{itemToDelete.title}"</span>?</p>
+            <h3 className="font-heading font-semibold text-lg text-gray-900 mb-2">
+              {itemToDelete ? 'Delete Content' : `Delete ${selectedFilms.length} Items`}
+            </h3>
+            <p className="text-gray-500 text-sm mb-6">
+              {itemToDelete
+                ? <>Are you sure you want to delete <span className="font-semibold text-gray-700">"{itemToDelete.title}"</span>?</>
+                : <>Are you sure you want to delete <span className="font-semibold text-gray-700">{selectedFilms.length} item{selectedFilms.length > 1 ? 's' : ''}</span>?</>
+              }
+            </p>
             <div className="flex items-center gap-3 w-full">
-              <button onClick={() => setItemToDelete(null)} className="flex-1 py-2.5 bg-white border border-gray-200 hover:bg-gray-50 text-gray-800 rounded-lg text-sm font-medium transition-colors cursor-pointer">Cancel</button>
-              <button onClick={handleDelete} className="flex-1 py-2.5 bg-red-500 hover:bg-red-600 text-white rounded-lg text-sm font-medium transition-colors cursor-pointer shadow-sm">Delete</button>
+              <button onClick={() => { setItemToDelete(null); setShowBulkDeleteConfirm(false); }} className="flex-1 py-2.5 bg-white border border-gray-200 hover:bg-gray-50 text-gray-800 rounded-lg text-sm font-medium transition-colors cursor-pointer">Cancel</button>
+              <button onClick={() => { if (itemToDelete) { handleDelete(); } else { handleBulkDelete(); } setShowBulkDeleteConfirm(false); }} className="flex-1 py-2.5 bg-red-500 hover:bg-red-600 text-white rounded-lg text-sm font-medium transition-colors cursor-pointer shadow-sm">Delete</button>
             </div>
           </div>
         </div>, document.body

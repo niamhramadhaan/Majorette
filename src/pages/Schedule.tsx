@@ -86,6 +86,14 @@ export default function Schedule() {
     localStorage.setItem(STORAGE_KEYS.SCHEDULES, JSON.stringify(newSchedules));
   };
 
+  const activeSchedule = getActiveSchedule(schedules, content);
+
+  const getEffectiveStatus = (schedule: Schedule): ScheduleStatus => {
+    if (schedule.status === 'done') return 'done';
+    if (activeSchedule?.id === schedule.id) return 'playing';
+    return schedule.status || 'unplayed';
+  };
+
   const sortedSchedules = [...schedules]
     .filter((s) => s.name.toLowerCase().includes(search.toLowerCase()))
     .filter((s) => {
@@ -106,15 +114,8 @@ export default function Schedule() {
       return sortOrder === "latest" ? dateB - dateA : dateA - dateB;
     });
 
-  const itemsPerPage = 6;
+  const itemsPerPage = 9;
   const totalPages = Math.ceil(sortedSchedules.length / itemsPerPage);
-  const activeSchedule = getActiveSchedule(schedules, content);
-
-  const getEffectiveStatus = (schedule: Schedule): ScheduleStatus => {
-    if (schedule.status === 'done') return 'done';
-    if (activeSchedule?.id === schedule.id) return 'playing';
-    return schedule.status || 'unplayed';
-  };
 
   const handleAction = (action: string) => {
     setToastMessage(action);
@@ -166,6 +167,10 @@ export default function Schedule() {
 
   const handleRecreate = () => {
     if (!recreateFromSchedule) return;
+    if (new Date(recreateStartTime).getTime() < Date.now()) {
+      handleAction('Start time must be now or in the future');
+      return;
+    }
     const newSchedule: Schedule = {
       id: generateId(),
       name: recreateFromSchedule.name,
@@ -514,8 +519,11 @@ export default function Schedule() {
                   <label className="text-sm font-medium text-gray-700 mb-1.5 block">Start Time</label>
                   <input
                     type="datetime-local"
+                    min={toDatetimeLocal(new Date().toISOString())}
                     value={toDatetimeLocal(recreateStartTime)}
-                    onChange={(e) => { try { setRecreateStartTime(new Date(e.target.value).toISOString()); } catch {} }}
+                    onChange={(e) => {
+                      try { setRecreateStartTime(new Date(e.target.value).toISOString()); } catch {}
+                    }}
                     className="w-full px-3 py-2 bg-white border border-gray-200 rounded-lg text-sm focus:outline-none focus:border-[#0E7B35] focus:ring-1 focus:ring-[#0E7B35]"
                   />
                 </div>

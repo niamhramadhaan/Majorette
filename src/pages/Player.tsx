@@ -1,7 +1,7 @@
 ﻿import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { Play, Pause, Maximize, Minimize, Volume2, VolumeX, Film, AlertCircle, Clock, Music, CheckCircle } from 'lucide-react';
 import { cn } from '../lib/utils';
-import { STORAGE_KEYS, resolveFilePath, getActiveSchedule, getUpcomingSchedule, getCurrentItemIndex, getScheduleElapsed, getScheduleStartTime, getThumbnailUrl, writePlayerState } from '../lib/storage';
+import { STORAGE_KEYS, resolveFilePath, getActiveSchedule, getUpcomingSchedule, getCurrentItemIndex, getScheduleElapsed, getScheduleStartTime, getThumbnailUrl, writePlayerState, getSettings } from '../lib/storage';
 import type { LocalContent, Schedule, ScheduleItem } from '../types';
 
 const SKIP_DELAY = 5;
@@ -257,6 +257,25 @@ export default function Player() {
     ? (scheduleItems[visualIndex]?.duration || visualItem.duration)
     : 0;
 
+  const muteInitializedRef = useRef(false);
+
+  useEffect(() => {
+    muteInitializedRef.current = false;
+  }, [activeSchedule?.id]);
+
+  useEffect(() => {
+    if (!visualItem || !activeSchedule || muteInitializedRef.current) return;
+    muteInitializedRef.current = true;
+    const config = getSettings().playerMuteConfig;
+    if (visualItem.type === 'image') {
+      setIsMuted(config.image);
+    } else if (overlayAtPosition) {
+      setIsMuted(visualItem.type === 'video' ? config.videoWithOverlay : config.audioNoOverlay);
+    } else {
+      setIsMuted(visualItem.type === 'video' ? config.videoNoOverlay : config.audioNoOverlay);
+    }
+  }, [visualIndex, activeSchedule?.id]);
+
   useEffect(() => {
     if (!activeSchedule || !isPlaying) return;
     if (overlayAtPosition) {
@@ -505,7 +524,7 @@ export default function Player() {
           </div>
         )}
 
-        <audio ref={bgAudioRef} muted={isMuted} playsInline
+        <audio ref={bgAudioRef} playsInline
           onEnded={() => { bgAudioIdRef.current = null; setBgAudioLabel(null); }} />
 
         {bgAudioLabel && (

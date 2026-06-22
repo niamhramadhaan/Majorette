@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { Play, Pause, Plus, Calendar, ExternalLink, Music, Image as ImageIcon, Film, Clock, SkipBack, SkipForward, CheckCircle, RotateCcw, X, CheckCircle2 } from 'lucide-react';
 import { cn } from '../lib/utils';
 import { createPortal } from 'react-dom';
-import { STORAGE_KEYS, getActivities, getThumbnailUrl, getActiveSchedule, getUpcomingSchedule, getScheduleStartTime, emitSkipSignal, emitResumeSignal, emitDoneSignal, getPlayerState, getScheduleElapsed, getCurrentItemIndex, generateId, getTimestamp, getScheduleTotalDuration } from '../lib/storage';
+import { STORAGE_KEYS, getActivities, getThumbnailUrl, getActiveSchedule, getUpcomingSchedule, getScheduleStartTime, emitSkipSignal, emitResumeSignal, emitDoneSignal, getPlayerState, getScheduleElapsed, getCurrentItemIndex, generateId, getTimestamp, getScheduleTotalDuration, resolveFilePath } from '../lib/storage';
 import type { LocalContent, Schedule, ActivityLog, ScheduleItem } from '../types';
 
 function toDatetimeLocal(isoString: string): string {
@@ -12,6 +12,39 @@ function toDatetimeLocal(isoString: string): string {
     const pad = (n: number) => String(n).padStart(2, '0');
     return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
   } catch { return ''; }
+}
+
+function TimeIcon({ hour }: { hour: number }) {
+  if (hour >= 5 && hour < 8) {
+    return (
+      <svg className="w-8 h-8 text-orange-400 animate-icon-float" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M12 2v2" /><path d="M12 20v2" /><path d="m4.93 4.93 1.41 1.41" /><path d="m17.66 17.66 1.41 1.41" /><path d="M2 12h2" /><path d="M20 12h2" /><path d="m6.34 17.66-1.41 1.41" /><path d="m19.07 4.93-1.41 1.41" />
+        <circle cx="12" cy="12" r="4" fill="currentColor" opacity="0.3" />
+        <path d="M12 16v4" strokeDasharray="2 2" opacity="0.5" />
+      </svg>
+    );
+  }
+  if (hour >= 8 && hour < 17) {
+    return (
+      <svg className="w-8 h-8 text-yellow-500 animate-icon-spin-slow" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+        <circle cx="12" cy="12" r="4" fill="currentColor" opacity="0.4" />
+        <path d="M12 2v2" /><path d="M12 20v2" /><path d="m4.93 4.93 1.41 1.41" /><path d="m17.66 17.66 1.41 1.41" /><path d="M2 12h2" /><path d="M20 12h2" /><path d="m6.34 17.66-1.41 1.41" /><path d="m19.07 4.93-1.41 1.41" />
+      </svg>
+    );
+  }
+  if (hour >= 17 && hour < 19) {
+    return (
+      <svg className="w-8 h-8 text-orange-500 animate-icon-glow" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M12 10V2" /><path d="m4.93 10.93 1.41 1.41" /><path d="M2 18h2" /><path d="M20 18h2" /><path d="m19.07 10.93-1.41 1.41" /><path d="M22 22H2" /><path d="m8 22 4-10 4 10" />
+        <circle cx="12" cy="6" r="3" fill="currentColor" opacity="0.3" />
+      </svg>
+    );
+  }
+  return (
+    <svg className="w-8 h-8 text-indigo-400 animate-icon-glow" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z" fill="currentColor" opacity="0.2" />
+    </svg>
+  );
 }
 
 export default function Dashboard() {
@@ -87,9 +120,45 @@ export default function Dashboard() {
     return getScheduleStartTime(upcomingSchedule);
   };
 
+  const getUpcomingCountdown = (): number => {
+    const start = getUpcomingStart();
+    if (!start) return 0;
+    return Math.max(0, (start.getTime() - Date.now()) / 1000);
+  };
+
+  const formatCountdown = (totalSec: number): { h: string; m: string; s: string; display: string } => {
+    if (totalSec <= 0) return { h: '', m: '', s: '0', display: '0s' };
+    const h = Math.floor(totalSec / 3600);
+    const m = Math.floor((totalSec % 3600) / 60);
+    const s = Math.floor(totalSec % 60);
+    const parts: string[] = [];
+    if (h > 0) parts.push(`${h}h`);
+    if (m > 0) parts.push(`${m}m`);
+    parts.push(`${s}s`);
+    return { h: h > 0 ? `${h}` : '', m: m > 0 ? `${m}` : '', s: `${s}`, display: parts.join(' ') };
+  };
+
+  const upcomingCountdownSec = getUpcomingCountdown();
+  const isUpcomingSoon = upcomingCountdownSec > 0 && upcomingCountdownSec <= 600;
+  const upcomingFirstItem = upcomingSchedule?.items[0]
+    ? content.find(c => c.id === upcomingSchedule.items[0].contentId)
+    : null;
+
   const lastPlayedSchedules = schedules
     .filter(s => s.status === 'done')
     .sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime());
+
+  const topMedia = (() => {
+    const playCount = new Map<string, number>();
+    schedules.forEach(s => s.items.forEach(item => {
+      playCount.set(item.contentId, (playCount.get(item.contentId) || 0) + 1);
+    }));
+    return content
+      .map(c => ({ ...c, playCount: playCount.get(c.id) || 0 }))
+      .filter(c => c.playCount > 0)
+      .sort((a, b) => b.playCount - a.playCount)
+      .slice(0, 5);
+  })();
 
   const getRelativeTime = (isoString: string) => {
     const diff = Date.now() - new Date(isoString).getTime();
@@ -115,7 +184,7 @@ export default function Dashboard() {
     ? JSON.parse(localStorage.getItem(STORAGE_KEYS.SETTINGS)!).venueName
     : 'Your Venue';
 
-  const formatTime = (date: Date) => date.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true });
+  const formatTime = (date: Date) => date.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: true });
   const formatDate = (date: Date) => date.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' });
 
   const getContentIcon = (type?: string) => {
@@ -133,6 +202,10 @@ export default function Dashboard() {
 
   const handleRecreate = () => {
     if (!recreateFromSchedule) return;
+    if (new Date(recreateStartTime).getTime() < Date.now()) {
+      showToast('Start time must be now or in the future');
+      return;
+    }
     const newSchedule: Schedule = {
       id: generateId(),
       name: recreateFromSchedule.name,
@@ -167,9 +240,12 @@ export default function Dashboard() {
         </div>
       )}
       <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-heading font-bold text-gray-900">{venueName}</h1>
-          <p className="text-sm text-gray-500 mt-1">{formatDate(currentTime)} - {formatTime(currentTime)}</p>
+        <div className="flex items-center gap-4">
+          <TimeIcon hour={currentTime.getHours()} />
+          <div>
+            <h1 className="text-2xl font-heading font-bold text-gray-900">{venueName}</h1>
+            <p className="text-sm text-gray-500 mt-1">{formatDate(currentTime)} &middot; {formatTime(currentTime)}</p>
+          </div>
         </div>
         <button onClick={() => window.open('/player', '_blank')} className="flex items-center gap-2 px-4 py-2 bg-[#0E7B35] hover:bg-[#0A5E28] text-white rounded-lg text-sm font-medium transition-colors shadow-sm">
           <ExternalLink className="w-4 h-4" /> Open Player
@@ -228,21 +304,83 @@ export default function Dashboard() {
                 </div>
               </div>
             ) : upcomingSchedule ? (
-              <div className="text-center py-8">
-                <Clock className="w-12 h-12 text-gray-300 mx-auto mb-3" />
-                <p className="text-gray-400 mb-1">No schedule playing right now</p>
-                <p className="text-[#0E7B35] font-medium">{upcomingSchedule.name}</p>
-                <p className="text-xs text-gray-500 mt-1">
-                  Starts {getUpcomingStart() ? formatTime(getUpcomingStart()!) : 'soon'}
-                </p>
-              </div>
+              isUpcomingSoon ? (
+                <div className="py-4">
+                  <div className="flex items-center gap-4">
+                    <div className="w-20 h-14 bg-gray-100 rounded-lg flex items-center justify-center flex-shrink-0 border border-gray-200 overflow-hidden">
+                      {upcomingFirstItem && getThumbnailUrl(upcomingFirstItem) ? (
+                        <img src={getThumbnailUrl(upcomingFirstItem)!} alt="" className="w-full h-full object-cover" />
+                      ) : upcomingFirstItem?.type === 'video' ? (
+                        <Film className="w-6 h-6 text-gray-400" />
+                      ) : (
+                        getContentIcon(upcomingFirstItem?.type)
+                      )}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-[11px] text-[#0E7B35] font-semibold uppercase tracking-wide mb-0.5">Starting Soon</p>
+                      <p className="font-heading font-semibold text-gray-900 truncate">{upcomingSchedule.name}</p>
+                      <p className="text-xs text-gray-500 mt-0.5">{upcomingFirstItem?.title || 'Unknown content'}</p>
+                    </div>
+                    <div className="text-right flex-shrink-0">
+                      {upcomingCountdownSec <= 20 ? (
+                        <p className="text-lg font-mono font-bold text-[#0E7B35]">
+                          {formatCountdown(upcomingCountdownSec).h && <span>{formatCountdown(upcomingCountdownSec).h}<span className="text-xs opacity-60">h</span></span>}
+                          {formatCountdown(upcomingCountdownSec).m && <span>{formatCountdown(upcomingCountdownSec).m}<span className="text-xs opacity-60">m</span></span>}
+                          <span className="animate-seconds-pulse">{formatCountdown(upcomingCountdownSec).s}</span><span className="text-xs opacity-60">s</span>
+                        </p>
+                      ) : (
+                        <p className="text-lg font-mono font-bold text-[#0E7B35]">{formatCountdown(upcomingCountdownSec).display}</p>
+                      )}
+                    </div>
+                  </div>
+                  <button onClick={() => window.open('/player', '_blank')} className="mt-4 w-full flex items-center justify-center gap-2 bg-[#0E7B35] hover:bg-[#0A5E28] text-white px-4 py-2.5 rounded-lg text-sm font-medium transition-colors">
+                    <ExternalLink className="w-4 h-4" /> Open Player
+                  </button>
+                </div>
+              ) : (
+                <div className="text-center py-8">
+                  <Clock className="w-12 h-12 text-gray-300 mx-auto mb-3" />
+                  <p className="text-gray-400 mb-1">No schedule playing right now</p>
+                  <p className="text-[#0E7B35] font-medium">{upcomingSchedule.name}</p>
+                  <p className="text-xs text-gray-500 mt-1">
+                    Starts {getUpcomingStart() ? formatTime(getUpcomingStart()!) : 'soon'}
+                  </p>
+                </div>
+              )
             ) : (
               <div className="text-center py-8">
                 <Play className="w-12 h-12 text-gray-300 mx-auto mb-3" /><p className="text-gray-500">No content playing</p>
-                <button onClick={() => navigate('/films/ingest')} className="mt-3 text-sm text-[#0E7B35] hover:text-[#0A5E28] font-medium">Add content to get started</button>
+                <button onClick={() => navigate('/schedule')} className="mt-3 text-sm text-[#0E7B35] hover:text-[#0A5E28] font-medium">Create a Schedule</button>
               </div>
             )}
           </div>
+
+          {(activeSchedule || lastPlayedSchedules.length > 0) && (
+            <div className="card p-4">
+              <h3 className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">Last Play</h3>
+              {activeSchedule ? (
+                <div className="flex items-center gap-3">
+                  <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse flex-shrink-0" />
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-medium text-gray-900 truncate">{activeSchedule.name}</p>
+                    <p className="text-xs text-gray-500">
+                      Running for {formatElapsed(elapsedSec)} &middot; {activeSchedule.items.length} items &middot; {activeSchedule.mode === 'loop' ? 'Loop' : 'Once'}
+                    </p>
+                  </div>
+                </div>
+              ) : lastPlayedSchedules[0] ? (
+                <div className="flex items-center gap-3">
+                  <div className="w-2 h-2 rounded-full bg-gray-400 flex-shrink-0" />
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-medium text-gray-900 truncate">{lastPlayedSchedules[0].name}</p>
+                    <p className="text-xs text-gray-500">
+                      Ran for {formatElapsed(getScheduleTotalDuration(lastPlayedSchedules[0], content))} &middot; Ended {getRelativeTime(lastPlayedSchedules[0].updatedAt)}
+                    </p>
+                  </div>
+                </div>
+              ) : null}
+            </div>
+          )}
 
           {nextItems.length > 0 && (
             <div className="card p-6">
@@ -268,14 +406,28 @@ export default function Dashboard() {
             </div>
           )}
 
-          {activities.length > 0 && (
+          {topMedia.length > 0 && (
             <div className="card p-6">
-              <h2 className="font-heading font-semibold text-gray-800 mb-4">Recent Activity</h2>
+              <h2 className="font-heading font-semibold text-gray-800 mb-4">Top Played Media</h2>
               <div className="space-y-3">
-                {activities.slice(0, 5).map((activity) => (
-                  <div key={activity.id} className="flex items-start gap-3">
-                    <div className={cn("w-2 h-2 rounded-full mt-2 flex-shrink-0", activity.type === 'success' ? "bg-green-500" : activity.type === 'warning' ? "bg-yellow-500" : "bg-blue-500")} />
-                    <div><p className="text-sm text-gray-700">{activity.message}</p><p className="text-xs text-gray-400 mt-0.5">{new Date(activity.timestamp).toLocaleTimeString()}</p></div>
+                {topMedia.map((item, index) => (
+                  <div key={item.id} className="flex items-center gap-4 p-3 bg-gray-50 rounded-xl hover:bg-gray-100 transition-colors">
+                    <span className={cn("w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold flex-shrink-0",
+                      index === 0 ? "bg-yellow-100 text-yellow-700" : index === 1 ? "bg-gray-200 text-gray-600" : index === 2 ? "bg-orange-100 text-orange-700" : "bg-gray-100 text-gray-500")}>
+                      {index + 1}
+                    </span>
+                    <div className="w-12 h-8 bg-gray-200 rounded flex items-center justify-center flex-shrink-0 overflow-hidden">
+                      {getThumbnailUrl(item) ? (
+                        <img src={getThumbnailUrl(item)!} alt="" className="w-full h-full object-cover" />
+                      ) : (
+                        getContentIcon(item.type)
+                      )}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium text-gray-700 truncate">{item.title}</p>
+                      <p className="text-xs text-gray-500 capitalize">{item.type}</p>
+                    </div>
+                    <span className="text-xs font-semibold text-gray-400 flex-shrink-0">{item.playCount}x</span>
                   </div>
                 ))}
               </div>
@@ -336,6 +488,20 @@ export default function Dashboard() {
               <button onClick={() => navigate('/schedule')} className="mt-4 text-sm text-[#0E7B35] hover:text-[#0A5E28] font-medium">
                 View All →
               </button>
+            </div>
+          )}
+
+          {activities.length > 0 && (
+            <div className="card p-6">
+              <h2 className="font-heading font-semibold text-gray-800 mb-4">Recent Activity</h2>
+              <div className="space-y-3">
+                {activities.slice(0, 5).map((activity) => (
+                  <div key={activity.id} className="flex items-start gap-3">
+                    <div className={cn("w-2 h-2 rounded-full mt-2 flex-shrink-0", activity.type === 'success' ? "bg-green-500" : activity.type === 'warning' ? "bg-yellow-500" : "bg-blue-500")} />
+                    <div><p className="text-sm text-gray-700">{activity.message}</p><p className="text-xs text-gray-400 mt-0.5">{new Date(activity.timestamp).toLocaleTimeString()}</p></div>
+                  </div>
+                ))}
+              </div>
             </div>
           )}
         </div>
@@ -403,8 +569,11 @@ export default function Dashboard() {
                   <label className="text-sm font-medium text-gray-700 mb-1.5 block">Start Time</label>
                   <input
                     type="datetime-local"
+                    min={toDatetimeLocal(new Date().toISOString())}
                     value={toDatetimeLocal(recreateStartTime)}
-                    onChange={(e) => { try { setRecreateStartTime(new Date(e.target.value).toISOString()); } catch {} }}
+                    onChange={(e) => {
+                      try { setRecreateStartTime(new Date(e.target.value).toISOString()); } catch {}
+                    }}
                     className="w-full px-3 py-2 bg-white border border-gray-200 rounded-lg text-sm focus:outline-none focus:border-[#0E7B35] focus:ring-1 focus:ring-[#0E7B35]"
                   />
                 </div>

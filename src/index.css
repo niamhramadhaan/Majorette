@@ -80,3 +80,40 @@ h1, h2, h3, h4, h5, h6, .font-heading {
 .animate-pulse-bar {
   animation: pulse-bar 2s ease-in-out infinite;
 }
+
+@keyframes icon-float {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-3px); }
+}
+
+.animate-icon-float {
+  animation: icon-float 3s ease-in-out infinite;
+}
+
+@keyframes icon-glow {
+  0%, 100% { filter: drop-shadow(0 0 2px currentColor); }
+  50% { filter: drop-shadow(0 0 6px currentColor); }
+}
+
+.animate-icon-glow {
+  animation: icon-glow 2.5s ease-in-out infinite;
+}
+
+@keyframes icon-spin-slow {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+.animate-icon-spin-slow {
+  animation: icon-spin-slow 20s linear infinite;
+}
+
+@keyframes seconds-pulse {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.5; transform: scale(1.15); }
+}
+
+.animate-seconds-pulse {
+  animation: seconds-pulse 1s ease-in-out infinite;
+  display: inline-block;
+}

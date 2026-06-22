@@ -1,4 +1,4 @@
-import type { LocalContent, Schedule, Venue, AppSettings, ActivityLog, ScheduleStatus } from '../types';
+import type { LocalContent, Schedule, Venue, ScreenConfig, AppSettings, ActivityLog, ScheduleStatus } from '../types';
 import { APP_CONFIG } from '../config/app';
 
 export const STORAGE_KEYS = {
@@ -37,6 +37,34 @@ export function migrateOldKeys(): void {
     }
     localStorage.removeItem(oldKey);
   }
+  migrateVenueScreens();
+}
+
+function migrateVenueScreens(): void {
+  try {
+    const stored = localStorage.getItem(STORAGE_KEYS.VENUES);
+    if (!stored) return;
+    const venues = JSON.parse(stored);
+    let changed = false;
+    const migrated = venues.map((v: any) => {
+      if (typeof v.screens === 'number') {
+        changed = true;
+        const screens: ScreenConfig[] = [];
+        for (let i = 1; i <= v.screens; i++) {
+          screens.push({
+            id: `${v.id}-screen-${i}`,
+            name: `Screen ${i}`,
+            playerUrl: `/player?screen=${v.id}-screen-${i}`,
+            venueId: v.id,
+            createdAt: v.createdAt || new Date().toISOString(),
+          });
+        }
+        return { ...v, screens };
+      }
+      return v;
+    });
+    if (changed) localStorage.setItem(STORAGE_KEYS.VENUES, JSON.stringify(migrated));
+  } catch { /* ignore */ }
 }
 
 export const DEFAULT_SETTINGS: AppSettings = {
@@ -44,12 +72,18 @@ export const DEFAULT_SETTINGS: AppSettings = {
   venueName: '',
   timezone: 'UTC',
   contentRoot: APP_CONFIG.contentRoot,
+  playerMuteConfig: {
+    videoNoOverlay: false,
+    audioNoOverlay: false,
+    videoWithOverlay: true,
+    image: true,
+  },
 };
 
 export const DEFAULT_VENUE: Venue = {
   id: 'venue-default',
   name: 'My Venue',
-  screens: 1,
+  screens: [{ id: 'screen-default', name: 'Screen 1', playerUrl: '/player?screen=screen-default', venueId: 'venue-default', createdAt: new Date().toISOString() }],
   createdAt: new Date().toISOString(),
 };
 
@@ -91,7 +125,7 @@ export function getContentRoot(): string {
 }
 
 export function resolveFilePath(relativePath: string): string {
-  return APP_CONFIG.serverUrl + '/content/' + relativePath;
+  return APP_CONFIG.serverUrl + '/content/' + encodeURIComponent(relativePath);
 }
 
 export function getContentTypeFromExtension(filename: string): 'video' | 'audio' | 'image' {

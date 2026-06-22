@@ -185,9 +185,7 @@ export default function ShowBuilder() {
   };
 
   const handleStartTimeChange = (value: string) => {
-    try {
-      setStartTime(new Date(value).toISOString());
-    } catch { /* ignore */ }
+    try { setStartTime(new Date(value).toISOString()); } catch { /* ignore */ }
   };
 
   const togglePreview = (item: SequenceItem) => {
@@ -209,6 +207,12 @@ export default function ShowBuilder() {
   const handleSave = () => {
     if (sequence.length === 0) {
       setToastMessage('Please add at least one item to the schedule.');
+      setTimeout(() => setToastMessage(null), 3000);
+      return;
+    }
+
+    if (new Date(startTime).getTime() < Date.now()) {
+      setToastMessage('Start time must be now or in the future');
       setTimeout(() => setToastMessage(null), 3000);
       return;
     }
@@ -326,6 +330,7 @@ export default function ShowBuilder() {
         </div>
         <input
           type="datetime-local"
+          min={toDatetimeLocal(new Date().toISOString())}
           value={toDatetimeLocal(startTime)}
           onChange={(e) => handleStartTimeChange(e.target.value)}
           className="px-3 py-1.5 bg-white border border-gray-200 rounded-lg text-sm focus:outline-none focus:border-[#0E7B35] focus:ring-1 focus:ring-[#0E7B35]"
