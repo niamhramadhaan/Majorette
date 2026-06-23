@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import {
   Plus,
   Search,
@@ -13,13 +13,16 @@ import {
   Calendar,
   RotateCcw,
   X,
+  Monitor,
+  Check,
+  ChevronsUpDown,
 } from "lucide-react";
 import { cn } from "../lib/utils";
 import { useNavigate } from "react-router-dom";
 import { createPortal } from "react-dom";
 import { Pagination } from "../components/Pagination";
-import { STORAGE_KEYS, getActivities, addActivity, getActiveSchedule, getScheduleTotalDuration, generateId, getTimestamp } from "../lib/storage";
-import type { Schedule, LocalContent, ScheduleStatus } from "../types";
+import { STORAGE_KEYS, getActivities, addActivity, getActiveSchedule, getScheduleTotalDuration, generateId, getTimestamp, getAllScreens, assignScheduleToScreen } from "../lib/storage";
+import type { Schedule, LocalContent, ScheduleStatus, ScreenConfig } from "../types";
 
 function toDatetimeLocal(isoString: string): string {
   try {
@@ -64,9 +67,20 @@ export default function Schedule() {
     d.setMinutes(d.getMinutes() + 5, 0, 0);
     return d.toISOString();
   });
+  const [screens, setScreens] = useState<ScreenConfig[]>([]);
+  const [recreateScreenIds, setRecreateScreenIds] = useState<string[]>(['screen-default']);
+  const [showRecreateScreenDropdown, setShowRecreateScreenDropdown] = useState(false);
+  const recreateScreenDropdownRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     loadData();
+    const handleClickOutside = (e: MouseEvent) => {
+      if (recreateScreenDropdownRef.current && !recreateScreenDropdownRef.current.contains(e.target as Node)) {
+        setShowRecreateScreenDropdown(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
   const loadData = () => {
@@ -76,6 +90,7 @@ export default function Schedule() {
 
       if (storedSchedules) setSchedules(JSON.parse(storedSchedules));
       if (storedContent) setContent(JSON.parse(storedContent));
+      setScreens(getAllScreens());
     } catch {
       // ignore
     }
@@ -183,7 +198,16 @@ export default function Schedule() {
     };
     const updated = [...schedules, newSchedule];
     saveSchedulesToStorage(updated);
+    const screenIdsToAssign = recreateScreenIds.length > 0 ? recreateScreenIds : ['screen-default'];
+    for (const screenId of screenIdsToAssign) {
+      assignScheduleToScreen(screenId, newSchedule.id);
+      const screenName = screens.find(s => s.id === screenId)?.name || screenId;
+      addActivity({ message: `Assigned "${newSchedule.name}" to ${screenName}`, type: 'success' });
+    }
+    setScreens(getAllScreens());
     setRecreateFromSchedule(null);
+    setRecreateScreenIds(['screen-default']);
+    setShowRecreateScreenDropdown(false);
   };
 
   return (
@@ -294,6 +318,7 @@ export default function Schedule() {
                     <th className="px-6 py-4 font-medium tracking-wider">Content</th>
                     <th className="px-6 py-4 font-medium tracking-wider">Start Time</th>
                     <th className="px-6 py-4 font-medium tracking-wider">Mode</th>
+                    <th className="px-6 py-4 font-medium tracking-wider">Screen</th>
                     <th className="px-6 py-4 font-medium tracking-wider">Status</th>
                     <th className="px-6 py-4 font-medium tracking-wider text-right">Actions</th>
                   </tr>
@@ -363,6 +388,32 @@ export default function Schedule() {
                         </td>
                         <td className="px-6 py-4">
                           {(() => {
+                            const assignedScreens = screens.filter(s => s.scheduleId === schedule.id);
+                            if (assignedScreens.length === 0) {
+                              return <span className="text-xs text-gray-400">Default</span>;
+                            }
+                            if (assignedScreens.length === 1) {
+                              return (
+                                <span className="inline-flex items-center gap-1 text-xs text-gray-600">
+                                  <Monitor className="w-3 h-3 text-gray-400" />
+                                  {assignedScreens[0].name}
+                                </span>
+                              );
+                            }
+                            return (
+                              <div className="flex flex-col gap-0.5">
+                                {assignedScreens.map(s => (
+                                  <span key={s.id} className="inline-flex items-center gap-1 text-xs text-gray-600">
+                                    <Monitor className="w-3 h-3 text-gray-400" />
+                                    {s.name}
+                                  </span>
+                                ))}
+                              </div>
+                            );
+                          })()}
+                        </td>
+                        <td className="px-6 py-4">
+                          {(() => {
                             const status = getEffectiveStatus(schedule);
                             return (
                               <span className={cn("inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold uppercase",
@@ -383,6 +434,8 @@ export default function Schedule() {
                                   onClick={() => {
                                     setRecreateFromSchedule(schedule);
                                     setRecreateMode(schedule.mode);
+                                    setRecreateScreenIds(['screen-default']);
+                                    setShowRecreateScreenDropdown(false);
                                     const d = new Date();
                                     d.setMinutes(d.getMinutes() + 5, 0, 0);
                                     setRecreateStartTime(d.toISOString());
@@ -484,8 +537,8 @@ export default function Schedule() {
 
       {recreateFromSchedule && createPortal(
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-gray-900/50 animate-in fade-in backdrop-blur-sm">
-          <div className="bg-white rounded-xl shadow-2xl w-full max-w-md overflow-hidden flex flex-col animate-in slide-in-from-bottom-4">
-            <div className="p-6 space-y-4">
+          <div className="bg-white rounded-xl shadow-2xl w-full max-w-md flex flex-col animate-in slide-in-from-bottom-4">
+            <div className="p-6 space-y-4 overflow-y-auto max-h-[80vh]">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-3">
                   <div className="w-10 h-10 rounded-full bg-primary/10 text-primary flex items-center justify-center">
@@ -538,6 +591,46 @@ export default function Schedule() {
                     <option value="once">Play Once</option>
                   </select>
                 </div>
+                {screens.length > 0 && (
+                  <div ref={recreateScreenDropdownRef}>
+                    <label className="text-sm font-medium text-gray-700 mb-1.5 block">Assign to Screens <span className="text-gray-400 font-normal">(optional)</span></label>
+                    <div className="relative">
+                      <button type="button" onClick={() => setShowRecreateScreenDropdown(!showRecreateScreenDropdown)}
+                        className="w-full flex items-center justify-between px-3 py-2 bg-white border border-gray-200 rounded-lg text-sm text-gray-700 hover:bg-gray-50 transition-colors">
+                        <span className="flex items-center gap-2">
+                          <Monitor className="w-3.5 h-3.5 text-gray-400" />
+                          {recreateScreenIds.length === 0 ? 'No screens selected' : `${recreateScreenIds.length} screen${recreateScreenIds.length > 1 ? 's' : ''} selected`}
+                        </span>
+                        <ChevronsUpDown className="w-3.5 h-3.5 text-gray-400" />
+                      </button>
+                      {showRecreateScreenDropdown && (
+                        <div className="absolute top-full left-0 right-0 mt-1 bg-white rounded-xl shadow-xl border border-gray-100 py-2 z-50 max-h-48 overflow-y-auto">
+                          {screens.map(s => {
+                            const isSelected = recreateScreenIds.includes(s.id);
+                            return (
+                              <button key={s.id} type="button"
+                                onClick={() => setRecreateScreenIds(prev => isSelected ? prev.filter(id => id !== s.id) : [...prev, s.id])}
+                                className="w-full flex items-center gap-2.5 px-3 py-2 text-left hover:bg-gray-50 transition-colors">
+                                <div className={cn("w-4 h-4 rounded flex items-center justify-center border-2 transition-colors flex-shrink-0",
+                                  isSelected ? "bg-primary border-primary" : "border-gray-300")}>
+                                  {isSelected && <Check className="w-3 h-3 text-white" />}
+                                </div>
+                                <Monitor className="w-3.5 h-3.5 text-gray-400 flex-shrink-0" />
+                                <span className="text-sm text-gray-700 truncate">{s.name}</span>
+                              </button>
+                            );
+                          })}
+                          {recreateScreenIds.length > 0 && (
+                            <button onClick={() => setRecreateScreenIds([])}
+                              className="w-full px-3 py-2 text-xs text-gray-400 hover:text-gray-600 border-t border-gray-100 mt-1 pt-2">
+                              Clear selection
+                            </button>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
             <div className="p-4 border-t border-gray-100 bg-gray-50 flex justify-end gap-3">

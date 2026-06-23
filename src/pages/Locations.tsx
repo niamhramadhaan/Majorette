@@ -3,7 +3,7 @@ import { MapPin, Edit2, Save, X, Monitor, Plus, ExternalLink, Copy, Trash2, Rota
 import { useNavigate } from 'react-router-dom';
 import { createPortal } from 'react-dom';
 import { cn } from '../lib/utils';
-import { STORAGE_KEYS, saveVenues, addActivity, generateId, DEFAULT_VENUE, getTimestamp } from '../lib/storage';
+import { STORAGE_KEYS, saveVenues, addActivity, generateId, DEFAULT_VENUE, getTimestamp, getScreenPlayerState } from '../lib/storage';
 import type { Venue, ScreenConfig } from '../types';
 
 export default function Locations() {
@@ -193,7 +193,16 @@ export default function Locations() {
                       <Monitor className="w-5 h-5 text-blue-600" />
                     </div>
                     <div>
-                      <h4 className="font-heading font-semibold text-gray-900 group-hover:text-primary transition-colors">{screen.name}</h4>
+                      <div className="flex items-center gap-2">
+                        <h4 className="font-heading font-semibold text-gray-900 group-hover:text-primary transition-colors">{screen.name}</h4>
+                        {(() => {
+                          const state = getScreenPlayerState(screen.id);
+                          const isOnline = state && (Date.now() - (state as any).timestamp) < 30000;
+                          if (isOnline && state?.isPlaying !== false) return <div className="w-2 h-2 rounded-full bg-primary animate-pulse" />;
+                          if (isOnline && state?.isPlaying === false) return <div className="w-2 h-2 rounded-full bg-yellow-500" />;
+                          return null;
+                        })()}
+                      </div>
                       <p className="text-[11px] text-gray-400 font-mono">{screen.id.slice(0, 12)}</p>
                     </div>
                   </div>

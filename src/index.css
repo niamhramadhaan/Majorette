@@ -119,3 +119,26 @@ h1, h2, h3, h4, h5, h6, .font-heading {
   animation: seconds-pulse 1s ease-in-out infinite;
   display: inline-block;
 }
+
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--color-muted-teal);
+  border-radius: 9999px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--color-primary);
+}
+
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--color-muted-teal) transparent;
+}

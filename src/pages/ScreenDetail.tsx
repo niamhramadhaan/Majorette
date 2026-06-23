@@ -1,10 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { createPortal } from 'react-dom';
-import { ArrowLeft, Monitor, ExternalLink, Copy, Edit2, Save, X, Trash2, Volume2 } from 'lucide-react';
+import { ArrowLeft, Monitor, ExternalLink, Copy, Edit2, Save, X, Trash2, Volume2, Activity, Wifi, WifiOff, Pause } from 'lucide-react';
 import { cn } from '../lib/utils';
-import { STORAGE_KEYS, saveVenues, addActivity } from '../lib/storage';
-import type { Venue, ScreenConfig } from '../types';
+import { STORAGE_KEYS, saveVenues, addActivity, getScreenPlayerState, getActiveScheduleForScreen } from '../lib/storage';
+import type { Venue, ScreenConfig, Schedule, LocalContent } from '../types';
 
 export default function ScreenDetail() {
   const { id } = useParams();
@@ -16,6 +16,8 @@ export default function ScreenDetail() {
   const [editName, setEditName] = useState('');
   const [toastMessage, setToastMessage] = useState<string | null>(null);
   const [confirmDelete, setConfirmDelete] = useState(false);
+  const [schedules, setSchedules] = useState<Schedule[]>([]);
+  const [content, setContent] = useState<LocalContent[]>([]);
 
   useEffect(() => {
     try {
@@ -32,6 +34,10 @@ export default function ScreenDetail() {
           }
         }
       }
+      const storedSchedules = localStorage.getItem(STORAGE_KEYS.SCHEDULES);
+      if (storedSchedules) setSchedules(JSON.parse(storedSchedules));
+      const storedContent = localStorage.getItem(STORAGE_KEYS.CONTENT);
+      if (storedContent) setContent(JSON.parse(storedContent));
     } catch { /* ignore */ }
     setIsLoading(false);
   }, [id]);
@@ -74,7 +80,8 @@ export default function ScreenDetail() {
 
   const handleCopyUrl = () => {
     if (!screen) return;
-    navigator.clipboard.writeText(window.location.origin + screen.playerUrl);
+    const url = `/player/screen/${screen.id}`;
+    navigator.clipboard.writeText(window.location.origin + url);
     setToastMessage('Player URL copied to clipboard');
     setTimeout(() => setToastMessage(null), 3000);
   };
@@ -125,7 +132,7 @@ export default function ScreenDetail() {
           </div>
         </div>
         <div className="flex items-center gap-2">
-          <button onClick={() => window.open(screen.playerUrl, '_blank')}
+          <button onClick={() => window.open(`/player/screen/${screen.id}`, '_blank')}
             className="flex items-center gap-2 bg-primary hover:bg-primary-dark text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors">
             <ExternalLink className="w-4 h-4" /> Open Player
           </button>
@@ -145,7 +152,7 @@ export default function ScreenDetail() {
             <p className="text-xs text-gray-500 font-medium mb-2">Player URL</p>
             <div className="flex items-center gap-2">
               <code className="flex-1 px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg text-sm font-mono text-gray-700">
-                {window.location.origin}{screen.playerUrl}
+                {window.location.origin}/player/screen/{screen.id}
               </code>
               <button onClick={handleCopyUrl}
                 className="px-3 py-2 bg-white border border-gray-200 hover:bg-gray-50 rounded-lg text-sm font-medium text-gray-700 transition-colors flex items-center gap-1.5">
@@ -174,9 +181,55 @@ export default function ScreenDetail() {
         </div>
       </div>
 
+      <div className="card p-0 overflow-hidden">
+        <div className="px-6 py-4 border-b border-gray-100 bg-gray-50/50">
+          <h3 className="font-heading font-semibold text-gray-900 flex items-center gap-2">
+            <Activity className="w-4 h-4 text-primary" /> Status
+          </h3>
+        </div>
+        <div className="p-6">
+          {(() => {
+            const screenState = getScreenPlayerState(screen.id);
+            const screenSchedule = getActiveScheduleForScreen(schedules, content, screen.id);
+            const isOnline = screenState && (Date.now() - (screenState as any).timestamp) < 30000;
+            const isPlaying = screenState?.isPlaying !== false;
+
+            return (
+              <div className="space-y-4">
+                <div className="flex items-center gap-3">
+                  <div className={cn("w-3 h-3 rounded-full", isOnline ? (isPlaying ? "bg-primary animate-pulse" : "bg-yellow-500") : "bg-gray-300")} />
+                  <div>
+                    <p className="text-sm font-semibold text-gray-900">
+                      {isOnline ? (isPlaying ? 'Playing' : 'Paused') : 'Offline'}
+                    </p>
+                    <p className="text-xs text-gray-500">
+                      {isOnline
+                        ? (screenSchedule ? screenSchedule.name : 'No schedule assigned')
+                        : 'This screen has not connected recently'}
+                    </p>
+                  </div>
+                </div>
+                {screenSchedule && (
+                  <div className="p-3 bg-gray-50 rounded-lg">
+                    <p className="text-xs text-gray-500 font-medium mb-1">Assigned Schedule</p>
+                    <p className="text-sm font-medium text-gray-900">{screenSchedule.name}</p>
+                    <p className="text-xs text-gray-500 mt-0.5">{screenSchedule.mode === 'loop' ? 'Loop' : 'Once'} · {screenSchedule.items.length} items</p>
+                  </div>
+                )}
+                {!screenSchedule && (
+                  <div className="p-3 bg-gray-50 rounded-lg">
+                    <p className="text-xs text-gray-500">No schedule assigned. This screen will play unassigned schedules automatically.</p>
+                  </div>
+                )}
+              </div>
+            );
+          })()}
+        </div>
+      </div>
+
       <div className="card p-4 bg-blue-50 border border-blue-100">
         <p className="text-sm text-blue-800">
-          <strong>Tip:</strong> Open <code className="bg-blue-100 px-1.5 py-0.5 rounded text-xs">{screen.playerUrl}</code> in a browser on the display screen. The player will automatically play your active schedule.
+          <strong>Tip:</strong> Open <code className="bg-blue-100 px-1.5 py-0.5 rounded text-xs">/player/screen/{screen.id}</code> in a browser on the display screen to start playback.
         </p>
       </div>
 

@@ -1,10 +1,10 @@
-﻿import React, { useState, useEffect } from 'react';
+﻿import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Play, Pause, Plus, Calendar, ExternalLink, Music, Image as ImageIcon, Film, Clock, SkipBack, SkipForward, CheckCircle, RotateCcw, X, CheckCircle2, History, Keyboard } from 'lucide-react';
+import { Play, Pause, Plus, Calendar, ExternalLink, Music, Image as ImageIcon, Film, Clock, SkipBack, SkipForward, CheckCircle, RotateCcw, X, CheckCircle2, History, Keyboard, Monitor, Check, ChevronsUpDown, ChevronLeft, ChevronRight, ChevronDown } from 'lucide-react';
 import { cn } from '../lib/utils';
 import { createPortal } from 'react-dom';
-import { STORAGE_KEYS, getActivities, getThumbnailUrl, getActiveSchedule, getUpcomingSchedule, getScheduleStartTime, emitSkipSignal, emitResumeSignal, emitDoneSignal, getPlayerState, getScheduleElapsed, getCurrentItemIndex, generateId, getTimestamp, getScheduleTotalDuration, resolveFilePath } from '../lib/storage';
-import type { LocalContent, Schedule, ActivityLog, ScheduleItem } from '../types';
+import { STORAGE_KEYS, getActivities, getThumbnailUrl, getActiveSchedule, getUpcomingSchedule, getScheduleStartTime, emitSkipSignal, emitResumeSignal, emitDoneSignal, getPlayerState, getScheduleElapsed, getCurrentItemIndex, generateId, getTimestamp, getScheduleTotalDuration, resolveFilePath, getAllScreens, getScreenPlayerState, getActiveScheduleForScreen, assignScheduleToScreen, emitSkipSignalForScreen, emitPauseSignalForScreen, emitResumeSignalForScreen, emitDoneSignalForScreen, getUpcomingScheduleForScreen, addActivity } from '../lib/storage';
+import type { LocalContent, Schedule, ActivityLog, ScheduleItem, ScreenConfig } from '../types';
 
 function toDatetimeLocal(isoString: string): string {
   try {
@@ -63,6 +63,13 @@ export default function Dashboard() {
     return d.toISOString();
   });
   const [toastMessage, setToastMessage] = useState<string | null>(null);
+  const [screens, setScreens] = useState<ScreenConfig[]>([]);
+  const [recreateScreenIds, setRecreateScreenIds] = useState<string[]>(['screen-default']);
+  const [showRecreateScreenDropdown, setShowRecreateScreenDropdown] = useState(false);
+  const [currentScreenIndex, setCurrentScreenIndex] = useState(0);
+  const [showOpenPlayerDropdown, setShowOpenPlayerDropdown] = useState(false);
+  const openPlayerDropdownRef = useRef<HTMLDivElement>(null);
+  const recreateScreenDropdownRef = useRef<HTMLDivElement>(null);
 
   const showToast = (msg: string) => {
     setToastMessage(msg);
@@ -83,6 +90,19 @@ export default function Dashboard() {
     return () => clearInterval(poll);
   }, []);
 
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (recreateScreenDropdownRef.current && !recreateScreenDropdownRef.current.contains(e.target as Node)) {
+        setShowRecreateScreenDropdown(false);
+      }
+      if (openPlayerDropdownRef.current && !openPlayerDropdownRef.current.contains(e.target as Node)) {
+        setShowOpenPlayerDropdown(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
   const loadData = () => {
     try {
       const storedContent = localStorage.getItem(STORAGE_KEYS.CONTENT);
@@ -90,6 +110,7 @@ export default function Dashboard() {
       if (storedContent) setContent(JSON.parse(storedContent));
       if (storedSchedules) setSchedules(JSON.parse(storedSchedules));
       setActivities(getActivities());
+      setScreens(getAllScreens());
     } catch { /* ignore */ }
   };
 
@@ -219,13 +240,24 @@ export default function Dashboard() {
     const updated = [...schedules, newSchedule];
     setSchedules(updated);
     localStorage.setItem(STORAGE_KEYS.SCHEDULES, JSON.stringify(updated));
+    const screenIdsToAssign = recreateScreenIds.length > 0 ? recreateScreenIds : ['screen-default'];
+    for (const screenId of screenIdsToAssign) {
+      assignScheduleToScreen(screenId, newSchedule.id);
+      const screenName = screens.find(s => s.id === screenId)?.name || screenId;
+      addActivity({ message: `Assigned "${newSchedule.name}" to ${screenName}`, type: 'success' });
+    }
+    setScreens(getAllScreens());
     setRecreateFromSchedule(null);
+    setRecreateScreenIds(['screen-default']);
+    setShowRecreateScreenDropdown(false);
     showToast('New schedule created');
   };
 
   const openRecreateFromDone = (schedule: Schedule) => {
     setRecreateFromSchedule(schedule);
     setRecreateMode(schedule.mode);
+    setRecreateScreenIds(['screen-default']);
+    setShowRecreateScreenDropdown(false);
     const d = new Date();
     d.setMinutes(d.getMinutes() + 5, 0, 0);
     setRecreateStartTime(d.toISOString());
@@ -247,146 +279,207 @@ export default function Dashboard() {
             <p className="text-sm text-gray-500 mt-1">{formatDate(currentTime)} &middot; {formatTime(currentTime)}</p>
           </div>
         </div>
-        <button onClick={() => window.open('/player', '_blank')} className="flex items-center gap-2 px-4 py-2 bg-primary hover:bg-primary-dark text-white rounded-lg text-sm font-medium transition-colors shadow-sm">
-          <ExternalLink className="w-4 h-4" /> Open Player
-        </button>
+        <div className="relative" ref={openPlayerDropdownRef}>
+          <button onClick={() => {
+            if (screens.length <= 1) {
+              window.open(screens.length === 1 ? `/player/screen/${screens[0].id}` : '/player', '_blank');
+            } else {
+              setShowOpenPlayerDropdown(!showOpenPlayerDropdown);
+            }
+          }} className="flex items-center gap-2 px-4 py-2 bg-primary hover:bg-primary-dark text-white rounded-lg text-sm font-medium transition-colors shadow-sm">
+            <ExternalLink className="w-4 h-4" /> Open Player {screens.length > 1 && <ChevronDown className="w-3 h-3" />}
+          </button>
+          {showOpenPlayerDropdown && screens.length > 1 && (
+            <div className="absolute top-full right-0 mt-1 bg-white rounded-xl shadow-xl border border-gray-100 py-2 w-48 z-50">
+              <button onClick={() => { window.open('/player', '_blank'); setShowOpenPlayerDropdown(false); }}
+                className="w-full flex items-center gap-2 px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-50 transition-colors">
+                <Play className="w-3.5 h-3.5 text-gray-400" /> Default Player
+              </button>
+              <div className="border-t border-gray-100 my-1" />
+              {screens.map(s => (
+                <button key={s.id} onClick={() => { window.open(`/player/screen/${s.id}`, '_blank'); setShowOpenPlayerDropdown(false); }}
+                  className="w-full flex items-center gap-2 px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-50 transition-colors">
+                  <Monitor className="w-3.5 h-3.5 text-gray-400" /> {s.name}
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <div className="lg:col-span-2 space-y-6">
           <div className="card p-6">
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="font-heading font-semibold text-gray-800 flex items-center gap-2"><Play className="w-5 h-5 text-primary" /> Now Playing</h2>
-              {activeSchedule && <span className="px-3 py-1 bg-primary/10 text-primary-dark text-xs font-medium rounded-full border border-primary/20">{activeSchedule.name}</span>}
-            </div>
-            {activeSchedule?.status === 'done' ? (
-              <div className="text-center py-8">
-                <CheckCircle className="w-12 h-12 text-primary mx-auto mb-3" />
-                <p className="text-gray-900 font-semibold text-lg mb-1">{activeSchedule.name}</p>
-                <p className="text-gray-400 mb-4">Schedule Completed</p>
-                <button onClick={() => openRecreateFromDone(activeSchedule)} className="inline-flex items-center gap-2 px-4 py-2 bg-primary hover:bg-primary-dark text-white rounded-lg text-sm font-medium transition-colors">
-                  <RotateCcw className="w-4 h-4" /> Play Again
-                </button>
-              </div>
-            ) : currentItem ? (
-              <div className="flex items-center gap-6">
-                <div className="w-32 h-20 bg-gray-100 rounded-xl flex items-center justify-center flex-shrink-0 border border-gray-200 overflow-hidden">
-                  {getThumbnailUrl(currentItem) ? (
-                    <img src={getThumbnailUrl(currentItem)!} alt="" className="w-full h-full object-cover" />
-                  ) : (
-                    getContentIcon(currentItem.type)
-                  )}
-                </div>
-                <div className="flex-1">
-                  <h3 className="text-xl font-semibold text-gray-900">{currentItem.title}</h3>
-                  <p className="text-sm text-gray-500 mt-1 capitalize">{currentItem.type} - {currentItem.duration}s - {currentItem.fileName}</p>
-                  <div className="mt-3 flex items-center gap-3">
-                    <div className="flex-1 bg-gray-100 rounded-full h-2 overflow-hidden"><div className={cn("bg-primary h-full rounded-full transition-all duration-500", playerIsPlaying && "animate-pulse-bar")} style={{ width: Math.min(currentItemProgress, 100) + '%' }} /></div>
-                    <button onClick={() => emitSkipSignal('prev')} className="p-1.5 text-gray-400 hover:text-primary transition-all active:scale-90" title="Previous">
-                      <SkipBack className="w-4 h-4" />
-                    </button>
-                    <button onClick={() => emitSkipSignal('next')} className="p-1.5 text-gray-400 hover:text-primary transition-all active:scale-90" title="Next">
-                      <SkipForward className="w-4 h-4" />
-                    </button>
-                    {playerIsPlaying ? (
-                      <button onClick={() => { window.dispatchEvent(new CustomEvent('pause-signal')); localStorage.setItem(STORAGE_KEYS.PAUSE_SIGNAL, JSON.stringify({ timestamp: Date.now() })); }} className="p-1.5 text-gray-400 hover:text-red-500 transition-all active:scale-90" title="Pause">
-                        <Pause className="w-4 h-4" />
+            {screens.length > 0 ? (() => {
+              const screen = screens[Math.min(currentScreenIndex, screens.length - 1)];
+              const screenSchedule = getActiveScheduleForScreen(schedules, content, screen.id);
+              const screenUpcoming = !screenSchedule ? getUpcomingScheduleForScreen(schedules, content, screen.id) : null;
+              const screenItems = screenSchedule?.items || [];
+              const screenState = getScreenPlayerState(screen.id);
+              const sPauseElapsed = screenState?.pauseStart ? (Date.now() - screenState.pauseStart) / 1000 : 0;
+              const sRawElapsed = screenSchedule ? getScheduleElapsed(screenSchedule, content) / 1000 : 0;
+              const sElapsed = screenState ? sRawElapsed - sPauseElapsed + (screenState.manualOffset || 0) : sRawElapsed;
+              const sItemResult = screenSchedule ? getCurrentItemIndex(screenSchedule, content, sElapsed) : null;
+              const sCurrentItem = sItemResult && screenItems[sItemResult.index] ? content.find(c => c.id === screenItems[sItemResult.index].contentId) : null;
+              const sItemDuration = sCurrentItem ? (screenItems[sItemResult!.index]?.duration || sCurrentItem.duration) : 0;
+              const sProgress = sItemDuration > 0 ? Math.min((sItemResult!.offset / sItemDuration) * 100, 100) : 0;
+              const sIsPlaying = screenState?.isPlaying !== false;
+              const sUpcomingStart = screenUpcoming ? getScheduleStartTime(screenUpcoming) : null;
+              const sUpcomingCountdown = sUpcomingStart ? Math.max(0, (sUpcomingStart.getTime() - Date.now()) / 1000) : 0;
+              const sFirstItem = screenUpcoming?.items[0] ? content.find(c => c.id === screenUpcoming.items[0].contentId) : null;
+
+              return (
+                <>
+                  <div className="flex items-center justify-between mb-4">
+                    <div className="flex items-center gap-2">
+                      <button onClick={() => setCurrentScreenIndex(i => i > 0 ? i - 1 : screens.length - 1)}
+                        className="p-1 text-gray-400 hover:text-primary transition-colors" title="Previous screen">
+                        <ChevronLeft className="w-4 h-4" />
                       </button>
+                      <h2 className="font-heading font-semibold text-gray-800 flex items-center gap-2">
+                        <Monitor className="w-5 h-5 text-primary" /> {screen.name}
+                      </h2>
+                      <button onClick={() => setCurrentScreenIndex(i => i < screens.length - 1 ? i + 1 : 0)}
+                        className="p-1 text-gray-400 hover:text-primary transition-colors" title="Next screen">
+                        <ChevronRight className="w-4 h-4" />
+                      </button>
+                      {screens.length > 1 && <span className="text-xs text-gray-400 ml-1">{currentScreenIndex + 1}/{screens.length}</span>}
+                    </div>
+                    {screenSchedule && <span className="px-3 py-1 bg-primary/10 text-primary-dark text-xs font-medium rounded-full border border-primary/20">{screenSchedule.name}</span>}
+                  </div>
+                  {screenSchedule?.status === 'done' ? (
+                    <div className="text-center py-8">
+                      <CheckCircle className="w-12 h-12 text-primary mx-auto mb-3" />
+                      <p className="text-gray-900 font-semibold text-lg mb-1">{screenSchedule.name}</p>
+                      <p className="text-gray-400 mb-4">Schedule Completed</p>
+                      <button onClick={() => openRecreateFromDone(screenSchedule)} className="inline-flex items-center gap-2 px-4 py-2 bg-primary hover:bg-primary-dark text-white rounded-lg text-sm font-medium transition-colors">
+                        <RotateCcw className="w-4 h-4" /> Play Again
+                      </button>
+                    </div>
+                  ) : sCurrentItem ? (
+                    <div className="flex items-center gap-6">
+                      <div className="w-32 h-20 bg-gray-100 rounded-xl flex items-center justify-center flex-shrink-0 border border-gray-200 overflow-hidden">
+                        {getThumbnailUrl(sCurrentItem) ? (
+                          <img src={getThumbnailUrl(sCurrentItem)!} alt="" className="w-full h-full object-cover" />
+                        ) : (
+                          getContentIcon(sCurrentItem.type)
+                        )}
+                      </div>
+                      <div className="flex-1">
+                        <h3 className="text-xl font-semibold text-gray-900">{sCurrentItem.title}</h3>
+                        <p className="text-sm text-gray-500 mt-1 capitalize">{sCurrentItem.type} - {sCurrentItem.duration}s - {sCurrentItem.fileName}</p>
+                        <div className="mt-3 flex items-center gap-3">
+                          <div className="flex-1 bg-gray-100 rounded-full h-2 overflow-hidden"><div className={cn("bg-primary h-full rounded-full transition-all duration-500", sIsPlaying && "animate-pulse-bar")} style={{ width: Math.min(sProgress, 100) + '%' }} /></div>
+                          <button onClick={() => emitSkipSignalForScreen('prev', screen.id)} className="p-1.5 text-gray-400 hover:text-primary transition-all active:scale-90" title="Previous">
+                            <SkipBack className="w-4 h-4" />
+                          </button>
+                          <button onClick={() => emitSkipSignalForScreen('next', screen.id)} className="p-1.5 text-gray-400 hover:text-primary transition-all active:scale-90" title="Next">
+                            <SkipForward className="w-4 h-4" />
+                          </button>
+                          {sIsPlaying ? (
+                            <button onClick={() => emitPauseSignalForScreen(screen.id)} className="p-1.5 text-gray-400 hover:text-red-500 transition-all active:scale-90" title="Pause">
+                              <Pause className="w-4 h-4" />
+                            </button>
+                          ) : (
+                            <button onClick={() => emitResumeSignalForScreen(screen.id)} className="p-1.5 text-gray-400 hover:text-primary transition-all active:scale-90" title="Resume">
+                              <Play className="w-4 h-4" />
+                            </button>
+                          )}
+                          <button onClick={() => { setDoneModalSchedule(screenSchedule); }} className="p-1.5 text-gray-400 hover:text-primary transition-all active:scale-90" title="Mark Done">
+                            <CheckCircle className="w-4 h-4" />
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  ) : screenUpcoming ? (
+                    sUpcomingCountdown > 0 && sUpcomingCountdown <= 600 ? (
+                      <div className="py-4">
+                        <div className="flex items-center gap-4">
+                          <div className="w-20 h-14 bg-gray-100 rounded-lg flex items-center justify-center flex-shrink-0 border border-gray-200 overflow-hidden">
+                            {sFirstItem && getThumbnailUrl(sFirstItem) ? (
+                              <img src={getThumbnailUrl(sFirstItem)!} alt="" className="w-full h-full object-cover" />
+                            ) : (
+                              getContentIcon(sFirstItem?.type)
+                            )}
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <p className="text-[11px] text-primary font-semibold uppercase tracking-wide mb-0.5">Starting Soon</p>
+                            <p className="font-heading font-semibold text-gray-900 truncate">{screenUpcoming.name}</p>
+                            <p className="text-xs text-gray-500 mt-0.5">{sFirstItem?.title || 'Unknown content'}</p>
+                          </div>
+                          <div className="text-right flex-shrink-0">
+                            <p className="text-lg font-mono font-bold text-primary">{formatCountdown(sUpcomingCountdown).display}</p>
+                          </div>
+                        </div>
+                        <button onClick={() => window.open(`/player/screen/${screen.id}`, '_blank')} className="mt-4 w-full flex items-center justify-center gap-2 bg-primary hover:bg-primary-dark text-white px-4 py-2.5 rounded-lg text-sm font-medium transition-colors">
+                          <ExternalLink className="w-4 h-4" /> Open Player
+                        </button>
+                      </div>
                     ) : (
-                      <button onClick={() => emitResumeSignal()} className="p-1.5 text-gray-400 hover:text-primary transition-all active:scale-90" title="Resume">
-                        <Play className="w-4 h-4" />
-                      </button>
-                    )}
-                    <button onClick={() => setDoneModalSchedule(activeSchedule)} className="p-1.5 text-gray-400 hover:text-primary transition-all active:scale-90" title="Mark Done">
-                      <CheckCircle className="w-4 h-4" />
+                      <div className="text-center py-8">
+                        <Clock className="w-12 h-12 text-gray-300 mx-auto mb-3" />
+                        <p className="text-gray-400 mb-1">No schedule playing right now</p>
+                        <p className="text-primary font-medium">{screenUpcoming.name}</p>
+                        <p className="text-xs text-gray-500 mt-1">Starts {sUpcomingStart ? formatTime(sUpcomingStart) : 'soon'}</p>
+                      </div>
+                    )
+                  ) : (
+                    <div className="text-center py-8">
+                      <Play className="w-12 h-12 text-gray-300 mx-auto mb-3" /><p className="text-gray-500">No content playing</p>
+                      <button onClick={() => navigate('/schedule')} className="mt-3 text-sm text-primary hover:text-primary-dark font-medium">Create a Schedule</button>
+                    </div>
+                  )}
+                </>
+              );
+            })() : (
+              <>
+                <div className="flex items-center justify-between mb-4">
+                  <h2 className="font-heading font-semibold text-gray-800 flex items-center gap-2"><Play className="w-5 h-5 text-primary" /> Now Playing</h2>
+                  {activeSchedule && <span className="px-3 py-1 bg-primary/10 text-primary-dark text-xs font-medium rounded-full border border-primary/20">{activeSchedule.name}</span>}
+                </div>
+                {activeSchedule?.status === 'done' ? (
+                  <div className="text-center py-8">
+                    <CheckCircle className="w-12 h-12 text-primary mx-auto mb-3" />
+                    <p className="text-gray-900 font-semibold text-lg mb-1">{activeSchedule.name}</p>
+                    <p className="text-gray-400 mb-4">Schedule Completed</p>
+                    <button onClick={() => openRecreateFromDone(activeSchedule)} className="inline-flex items-center gap-2 px-4 py-2 bg-primary hover:bg-primary-dark text-white rounded-lg text-sm font-medium transition-colors">
+                      <RotateCcw className="w-4 h-4" /> Play Again
                     </button>
                   </div>
-                </div>
-              </div>
-            ) : upcomingSchedule ? (
-              isUpcomingSoon ? (
-                <div className="py-4">
-                  <div className="flex items-center gap-4">
-                    <div className="w-20 h-14 bg-gray-100 rounded-lg flex items-center justify-center flex-shrink-0 border border-gray-200 overflow-hidden">
-                      {upcomingFirstItem && getThumbnailUrl(upcomingFirstItem) ? (
-                        <img src={getThumbnailUrl(upcomingFirstItem)!} alt="" className="w-full h-full object-cover" />
-                      ) : upcomingFirstItem?.type === 'video' ? (
-                        <Film className="w-6 h-6 text-gray-400" />
+                ) : currentItem ? (
+                  <div className="flex items-center gap-6">
+                    <div className="w-32 h-20 bg-gray-100 rounded-xl flex items-center justify-center flex-shrink-0 border border-gray-200 overflow-hidden">
+                      {getThumbnailUrl(currentItem) ? (
+                        <img src={getThumbnailUrl(currentItem)!} alt="" className="w-full h-full object-cover" />
                       ) : (
-                        getContentIcon(upcomingFirstItem?.type)
+                        getContentIcon(currentItem.type)
                       )}
                     </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="text-[11px] text-primary font-semibold uppercase tracking-wide mb-0.5">Starting Soon</p>
-                      <p className="font-heading font-semibold text-gray-900 truncate">{upcomingSchedule.name}</p>
-                      <p className="text-xs text-gray-500 mt-0.5">{upcomingFirstItem?.title || 'Unknown content'}</p>
-                    </div>
-                    <div className="text-right flex-shrink-0">
-                      {upcomingCountdownSec <= 20 ? (
-                        <p className="text-lg font-mono font-bold text-primary">
-                          {formatCountdown(upcomingCountdownSec).h && <span>{formatCountdown(upcomingCountdownSec).h}<span className="text-xs opacity-60">h</span></span>}
-                          {formatCountdown(upcomingCountdownSec).m && <span>{formatCountdown(upcomingCountdownSec).m}<span className="text-xs opacity-60">m</span></span>}
-                          <span className="animate-seconds-pulse">{formatCountdown(upcomingCountdownSec).s}</span><span className="text-xs opacity-60">s</span>
-                        </p>
-                      ) : (
-                        <p className="text-lg font-mono font-bold text-primary">{formatCountdown(upcomingCountdownSec).display}</p>
-                      )}
+                    <div className="flex-1">
+                      <h3 className="text-xl font-semibold text-gray-900">{currentItem.title}</h3>
+                      <p className="text-sm text-gray-500 mt-1 capitalize">{currentItem.type} - {currentItem.duration}s - {currentItem.fileName}</p>
+                      <div className="mt-3 flex items-center gap-3">
+                        <div className="flex-1 bg-gray-100 rounded-full h-2 overflow-hidden"><div className={cn("bg-primary h-full rounded-full transition-all duration-500", playerIsPlaying && "animate-pulse-bar")} style={{ width: Math.min(currentItemProgress, 100) + '%' }} /></div>
+                        <button onClick={() => emitSkipSignal('prev')} className="p-1.5 text-gray-400 hover:text-primary transition-all active:scale-90" title="Previous"><SkipBack className="w-4 h-4" /></button>
+                        <button onClick={() => emitSkipSignal('next')} className="p-1.5 text-gray-400 hover:text-primary transition-all active:scale-90" title="Next"><SkipForward className="w-4 h-4" /></button>
+                        {playerIsPlaying ? (
+                          <button onClick={() => { window.dispatchEvent(new CustomEvent('pause-signal')); localStorage.setItem(STORAGE_KEYS.PAUSE_SIGNAL, JSON.stringify({ timestamp: Date.now() })); }} className="p-1.5 text-gray-400 hover:text-red-500 transition-all active:scale-90" title="Pause"><Pause className="w-4 h-4" /></button>
+                        ) : (
+                          <button onClick={() => emitResumeSignal()} className="p-1.5 text-gray-400 hover:text-primary transition-all active:scale-90" title="Resume"><Play className="w-4 h-4" /></button>
+                        )}
+                        <button onClick={() => setDoneModalSchedule(activeSchedule)} className="p-1.5 text-gray-400 hover:text-primary transition-all active:scale-90" title="Mark Done"><CheckCircle className="w-4 h-4" /></button>
+                      </div>
                     </div>
                   </div>
-                  <button onClick={() => window.open('/player', '_blank')} className="mt-4 w-full flex items-center justify-center gap-2 bg-primary hover:bg-primary-dark text-white px-4 py-2.5 rounded-lg text-sm font-medium transition-colors">
-                    <ExternalLink className="w-4 h-4" /> Open Player
-                  </button>
-                </div>
-              ) : (
-                <div className="text-center py-8">
-                  <Clock className="w-12 h-12 text-gray-300 mx-auto mb-3" />
-                  <p className="text-gray-400 mb-1">No schedule playing right now</p>
-                  <p className="text-primary font-medium">{upcomingSchedule.name}</p>
-                  <p className="text-xs text-gray-500 mt-1">
-                    Starts {getUpcomingStart() ? formatTime(getUpcomingStart()!) : 'soon'}
-                  </p>
-                </div>
-              )
-            ) : (
-              <div className="text-center py-8">
-                <Play className="w-12 h-12 text-gray-300 mx-auto mb-3" /><p className="text-gray-500">No content playing</p>
-                <button onClick={() => navigate('/schedule')} className="mt-3 text-sm text-primary hover:text-primary-dark font-medium">Create a Schedule</button>
-              </div>
+                ) : (
+                  <div className="text-center py-8">
+                    <Play className="w-12 h-12 text-gray-300 mx-auto mb-3" /><p className="text-gray-500">No content playing</p>
+                    <button onClick={() => navigate('/schedule')} className="mt-3 text-sm text-primary hover:text-primary-dark font-medium">Create a Schedule</button>
+                  </div>
+                )}
+              </>
             )}
           </div>
-
-          {(activeSchedule || lastPlayedSchedules.length > 0) && (
-            <div className="card p-6">
-              <h3 className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3 flex items-center gap-2">
-                <History className="w-4 h-4" /> Last Play
-              </h3>
-              {activeSchedule ? (
-                <div className="bg-primary/5 rounded-lg p-3">
-                  <div className="flex items-center gap-3">
-                    <div className="w-2.5 h-2.5 rounded-full bg-primary animate-pulse flex-shrink-0" />
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm font-semibold text-gray-900 truncate">{activeSchedule.name}</p>
-                      <p className="text-xs text-gray-500 mt-0.5">
-                        Running for {formatElapsed(elapsedSec)} <span className="text-gray-300 mx-0.5">&middot;</span> {activeSchedule.items.length} items <span className="text-gray-300 mx-0.5">&middot;</span> {activeSchedule.mode === 'loop' ? 'Loop' : 'Once'}
-                      </p>
-                    </div>
-                    <span className="px-2 py-0.5 bg-primary/10 text-primary text-[10px] font-semibold rounded-full uppercase tracking-wide">Active</span>
-                  </div>
-                </div>
-              ) : lastPlayedSchedules[0] ? (
-                <div className="flex items-center gap-3">
-                  <div className="w-2.5 h-2.5 rounded-full bg-gray-300 flex-shrink-0" />
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm font-semibold text-gray-900 truncate">{lastPlayedSchedules[0].name}</p>
-                    <p className="text-xs text-gray-500 mt-0.5">
-                      Ran for {formatElapsed(getScheduleTotalDuration(lastPlayedSchedules[0], content))} <span className="text-gray-300 mx-0.5">&middot;</span> Ended {getRelativeTime(lastPlayedSchedules[0].updatedAt)}
-                    </p>
-                  </div>
-                  <span className="px-2 py-0.5 bg-gray-100 text-gray-500 text-[10px] font-semibold rounded-full uppercase tracking-wide">Done</span>
-                </div>
-              ) : null}
-            </div>
-          )}
 
           {nextItems.length > 0 && (
             <div className="card p-6">
@@ -408,6 +501,31 @@ export default function Dashboard() {
                     </div>
                   </div>
                 ))}
+              </div>
+            </div>
+          )}
+
+          {lastPlayedSchedules.length > 0 && (
+            <div className="card p-6">
+              <h3 className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3 flex items-center gap-2">
+                <History className="w-4 h-4" /> Last Play
+              </h3>
+              <div className="space-y-3">
+                {lastPlayedSchedules.slice(0, 5).map(schedule => {
+                  const assignedScreens = screens.filter(s => s.scheduleId === schedule.id);
+                  const screenLabel = assignedScreens.length === 0 ? 'Default' : assignedScreens.length === 1 ? assignedScreens[0].name : `${assignedScreens.length} screens`;
+                  return (
+                    <div key={schedule.id} className="flex items-center justify-between gap-3">
+                      <div className="min-w-0">
+                        <p className="text-sm font-semibold text-gray-900 truncate">{schedule.name}</p>
+                        <p className="text-xs text-gray-500 mt-0.5">
+                          Ended {getRelativeTime(schedule.updatedAt)} <span className="text-gray-300 mx-0.5">&middot;</span> {screenLabel} <span className="text-gray-300 mx-0.5">&middot;</span> {schedule.mode === 'loop' ? 'Loop' : 'Once'}
+                        </p>
+                      </div>
+                      <span className="text-xs text-gray-400 font-mono flex-shrink-0">{formatElapsed(getScheduleTotalDuration(schedule, content))}</span>
+                    </div>
+                  );
+                })}
               </div>
             </div>
           )}
@@ -496,28 +614,6 @@ export default function Dashboard() {
             <p className="text-[11px] text-gray-400 mt-3 pt-3 border-t border-gray-100">These shortcuts work on the <a href="/player" className="text-primary hover:underline">Player</a> page.</p>
           </div>
 
-          {lastPlayedSchedules.length > 0 && (
-            <div className="card p-6">
-              <h2 className="font-heading font-semibold text-gray-800 mb-4">Last Played</h2>
-              <div className="space-y-3">
-                {lastPlayedSchedules.slice(0, 3).map(schedule => (
-                  <div key={schedule.id} className="flex items-center justify-between">
-                    <div className="min-w-0">
-                      <p className="text-sm font-medium text-gray-900 truncate">{schedule.name}</p>
-                      <p className="text-xs text-gray-500">
-                        {schedule.items.length} items · {formatElapsed(getScheduleTotalDuration(schedule, content))}
-                      </p>
-                    </div>
-                    <span className="text-xs text-gray-400 flex-shrink-0 ml-3">{getRelativeTime(schedule.updatedAt)}</span>
-                  </div>
-                ))}
-              </div>
-              <button onClick={() => navigate('/schedule')} className="mt-4 text-sm text-primary hover:text-primary-dark font-medium">
-                View All →
-              </button>
-            </div>
-          )}
-
           {activities.length > 0 && (
             <div className="card p-6">
               <h2 className="font-heading font-semibold text-gray-800 mb-4">Recent Activity</h2>
@@ -561,8 +657,8 @@ export default function Dashboard() {
 
       {recreateFromSchedule && createPortal(
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-gray-900/50 animate-in fade-in backdrop-blur-sm">
-          <div className="bg-white rounded-xl shadow-2xl w-full max-w-md overflow-hidden flex flex-col animate-in slide-in-from-bottom-4">
-            <div className="p-6 space-y-4">
+          <div className="bg-white rounded-xl shadow-2xl w-full max-w-md flex flex-col animate-in slide-in-from-bottom-4">
+            <div className="p-6 space-y-4 overflow-y-auto max-h-[80vh]">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-3">
                   <div className="w-10 h-10 rounded-full bg-primary/10 text-primary flex items-center justify-center">
@@ -615,6 +711,40 @@ export default function Dashboard() {
                     <option value="once">Play Once</option>
                   </select>
                 </div>
+                {screens.length > 0 && (
+                  <div ref={recreateScreenDropdownRef}>
+                    <label className="text-sm font-medium text-gray-700 mb-1.5 block">Assign to Screens <span className="text-gray-400 font-normal">(optional)</span></label>
+                    <div className="relative">
+                      <button type="button" onClick={() => setShowRecreateScreenDropdown(!showRecreateScreenDropdown)}
+                        className="w-full flex items-center justify-between px-3 py-2 bg-white border border-gray-200 rounded-lg text-sm text-gray-700 hover:bg-gray-50 transition-colors">
+                        <span className="flex items-center gap-2">
+                          <Monitor className="w-3.5 h-3.5 text-gray-400" />
+                          {recreateScreenIds.length === 0 ? 'No screens selected' : `${recreateScreenIds.length} screen${recreateScreenIds.length > 1 ? 's' : ''} selected`}
+                        </span>
+                        <ChevronsUpDown className="w-3.5 h-3.5 text-gray-400" />
+                      </button>
+                      {showRecreateScreenDropdown && (
+                        <div className="absolute top-full left-0 right-0 mt-1 bg-white rounded-xl shadow-xl border border-gray-100 py-2 z-50 max-h-48 overflow-y-auto">
+                          {screens.map(s => {
+                            const isSelected = recreateScreenIds.includes(s.id);
+                            return (
+                              <button key={s.id} type="button"
+                                onClick={() => setRecreateScreenIds(prev => isSelected ? prev.filter(id => id !== s.id) : [...prev, s.id])}
+                                className="w-full flex items-center gap-2.5 px-3 py-2 text-left hover:bg-gray-50 transition-colors">
+                                <div className={cn("w-4 h-4 rounded flex items-center justify-center border-2 transition-colors flex-shrink-0",
+                                  isSelected ? "bg-primary border-primary" : "border-gray-300")}>
+                                  {isSelected && <Check className="w-3 h-3 text-white" />}
+                                </div>
+                                <Monitor className="w-3.5 h-3.5 text-gray-400 flex-shrink-0" />
+                                <span className="text-sm text-gray-700 truncate">{s.name}</span>
+                              </button>
+                            );
+                          })}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
             <div className="p-4 border-t border-gray-100 bg-gray-50 flex justify-end gap-3">
