@@ -1,5 +1,5 @@
 ﻿import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { Play, Pause, Maximize, Minimize, Volume2, VolumeX, Film, AlertCircle, Clock, Music, CheckCircle } from 'lucide-react';
+import { Play, Pause, Maximize, Minimize, Volume2, VolumeX, Film, AlertCircle, Clock, Music, CheckCircle, Lock, LockOpen, Keyboard } from 'lucide-react';
 import { cn } from '../lib/utils';
 import { STORAGE_KEYS, resolveFilePath, getActiveSchedule, getUpcomingSchedule, getCurrentItemIndex, getScheduleElapsed, getScheduleStartTime, getThumbnailUrl, writePlayerState, getSettings } from '../lib/storage';
 import type { LocalContent, Schedule, ScheduleItem } from '../types';
@@ -48,6 +48,8 @@ export default function Player() {
   const [tick, setTick] = useState(0);
   const [bgAudioLabel, setBgAudioLabel] = useState<string | null>(null);
   const [scheduleDone, setScheduleDone] = useState(false);
+  const [controlsLocked, setControlsLocked] = useState(false);
+  const [showShortcuts, setShowShortcuts] = useState(false);
 
   const mainVideoRef = useRef<HTMLVideoElement | null>(null);
   const mainAudioRef = useRef<HTMLAudioElement | null>(null);
@@ -63,6 +65,8 @@ export default function Player() {
   const manualOffsetRef = useRef<number>(0);
   const skipVersionRef = useRef(0);
   const pauseStartRef = useRef<number | null>(null);
+  const pausedAtRef = useRef<number>(0);
+  const controlsLockedRef = useRef(false);
 
   useEffect(() => {
     const loadData = () => {
@@ -86,7 +90,10 @@ export default function Player() {
   const activeSchedule = getActiveSchedule(schedules, content);
   const upcomingSchedule = !activeSchedule ? getUpcomingSchedule(schedules, content) : null;
   const pauseElapsed = pauseStartRef.current ? (Date.now() - pauseStartRef.current) / 1000 : 0;
-  const elapsedSec = activeSchedule ? getScheduleElapsed(activeSchedule, content) / 1000 - pauseElapsed + manualOffsetRef.current : 0;
+  let elapsedSec = activeSchedule ? getScheduleElapsed(activeSchedule, content) / 1000 - pauseElapsed + manualOffsetRef.current : 0;
+  if (pauseStartRef.current && pausedAtRef.current > 0) {
+    elapsedSec = pausedAtRef.current;
+  }
   const rawResult = activeSchedule ? getCurrentItemIndex(activeSchedule, content, elapsedSec) : { index: 0, offset: 0 };
   const scheduleItems = activeSchedule?.items || [];
 
@@ -107,9 +114,11 @@ export default function Player() {
     if (activeSchedule && scheduleIdRef.current !== activeSchedule.id) {
       scheduleIdRef.current = activeSchedule.id;
       manualOffsetRef.current = 0;
-      setShowControls(true);
-      if (controlsTimeoutRef.current) clearTimeout(controlsTimeoutRef.current);
-      controlsTimeoutRef.current = window.setTimeout(() => { if (isPlaying && !mediaError) setShowControls(false); }, CONTROLS_HIDE_DELAY);
+      if (!controlsLockedRef.current) {
+        setShowControls(true);
+        if (controlsTimeoutRef.current) clearTimeout(controlsTimeoutRef.current);
+        controlsTimeoutRef.current = window.setTimeout(() => { if (isPlaying && !mediaError) setShowControls(false); }, CONTROLS_HIDE_DELAY);
+      }
     }
   }, [activeSchedule?.id]);
 
@@ -165,6 +174,8 @@ export default function Player() {
       }
       prevVisualIndexRef.current = -1;
       skipVersionRef.current += 1;
+      pauseStartRef.current = null;
+      pausedAtRef.current = 0;
       setTick(t => t + 1);
       writePlayerState({ isPlaying, manualOffset: manualOffsetRef.current, pauseStart: pauseStartRef.current });
     };
@@ -295,7 +306,7 @@ export default function Player() {
   }, [overlayAtPosition?.content.id, isPlaying, activeSchedule]);
 
   useEffect(() => {
-    if (bgAudioLabel && isMuted) {
+    if (bgAudioLabel && isMuted && !controlsLockedRef.current) {
       setShowControls(true);
       if (controlsTimeoutRef.current) clearTimeout(controlsTimeoutRef.current);
       controlsTimeoutRef.current = window.setTimeout(() => {
@@ -338,14 +349,14 @@ export default function Player() {
   useEffect(() => {
     if (!isPlaying) {
       if (!pauseStartRef.current) pauseStartRef.current = Date.now();
+      if (mainVideoRef.current) pausedAtRef.current = mainVideoRef.current.currentTime;
+      else if (mainAudioRef.current) pausedAtRef.current = mainAudioRef.current.currentTime;
       if (mainVideoRef.current) mainVideoRef.current.pause();
       if (mainAudioRef.current) mainAudioRef.current.pause();
       if (bgAudioRef.current) bgAudioRef.current.pause();
     } else {
-      if (pauseStartRef.current) {
-        manualOffsetRef.current -= (Date.now() - pauseStartRef.current) / 1000;
-        pauseStartRef.current = null;
-      }
+      pauseStartRef.current = null;
+      pausedAtRef.current = 0;
       if (mainVideoRef.current && visualItem?.type === 'video') mainVideoRef.current.play().catch(() => {});
       if (mainAudioRef.current && visualItem?.type === 'audio') mainAudioRef.current.play().catch(() => {});
       if (bgAudioRef.current && bgAudioIdRef.current) bgAudioRef.current.play().catch(() => {});
@@ -376,6 +387,8 @@ export default function Player() {
         case ' ': e.preventDefault(); setIsPlaying(prev => !prev); break;
         case 'f': case 'F': toggleFullscreen(); break;
         case 'm': case 'M': setIsMuted(prev => !prev); break;
+        case 'l': case 'L': handleLockToggle(); break;
+        case '?': setShowShortcuts(prev => !prev); break;
       }
     };
     window.addEventListener('keydown', handleKeyDown);
@@ -388,7 +401,17 @@ export default function Player() {
     return () => document.removeEventListener('fullscreenchange', h);
   }, []);
 
+  const handleLockToggle = () => {
+    setControlsLocked(prev => {
+      const next = !prev;
+      controlsLockedRef.current = next;
+      if (next) setShowControls(false);
+      return next;
+    });
+  };
+
   const handleMouseMove = () => {
+    if (controlsLockedRef.current) return;
     setShowControls(true);
     if (controlsTimeoutRef.current) clearTimeout(controlsTimeoutRef.current);
     controlsTimeoutRef.current = window.setTimeout(() => { if (isPlaying && !mediaError) setShowControls(false); }, CONTROLS_HIDE_DELAY);
@@ -440,7 +463,7 @@ export default function Player() {
     return (
       <div className="min-h-screen bg-black flex items-center justify-center">
         <div className="text-center">
-          <CheckCircle className="w-16 h-16 text-[#0E7B35] mx-auto mb-4" />
+          <CheckCircle className="w-16 h-16 text-primary mx-auto mb-4" />
           <p className="text-white text-2xl font-heading font-bold mb-2">Schedule Completed</p>
           <p className="text-gray-400">{activeSchedule?.name || 'Schedule'}</p>
           <p className="text-gray-600 text-sm mt-4">Use the dashboard to schedule a new playback.</p>
@@ -464,7 +487,7 @@ export default function Player() {
           <div className="absolute inset-0 flex items-center justify-center">
             <div className="text-center z-10">
               <Clock className="w-12 h-12 text-gray-500 mx-auto mb-4" />
-              <p className="text-[#B9EA38] text-2xl font-heading font-bold mb-2">{upcomingSchedule.name}</p>
+              <p className="text-secondary text-2xl font-heading font-bold mb-2">{upcomingSchedule.name}</p>
               <p className="text-gray-400 text-lg">Starts in {formatCountdown(countdown)}</p>
             </div>
           </div>
@@ -476,7 +499,7 @@ export default function Player() {
         <div className="text-center">
           <Play className="w-16 h-16 text-gray-600 mx-auto mb-4" />
           <p className="text-gray-400 mb-4">No schedules found</p>
-          <a href="/schedule" className="text-[#B9EA38] hover:underline">Create a Schedule</a>
+          <a href="/schedule" className="text-secondary hover:underline">Create a Schedule</a>
         </div>
       </div>
     );
@@ -489,7 +512,7 @@ export default function Player() {
           <AlertCircle className="w-16 h-16 text-yellow-500 mx-auto mb-4" />
           <p className="text-gray-400 mb-2">Schedule content not found</p>
           <p className="text-gray-600 text-sm mb-4">The schedule may reference deleted or missing media.</p>
-          <a href="/schedule" className="text-[#B9EA38] hover:underline">Manage Schedules</a>
+          <a href="/schedule" className="text-secondary hover:underline">Manage Schedules</a>
         </div>
       </div>
     );
@@ -498,7 +521,7 @@ export default function Player() {
   const visualItemCount = scheduleItems.filter((item, i) => !isOverlay(item, content, i, scheduleItems)).length;
 
   return (
-    <div ref={containerRef} className="min-h-screen bg-black relative overflow-hidden cursor-none" onMouseMove={handleMouseMove} onMouseLeave={() => isPlaying && !mediaError && setShowControls(false)}>
+    <div ref={containerRef} className={cn("min-h-screen bg-black relative overflow-hidden", controlsLocked ? "cursor-none" : "cursor-none")} onMouseMove={handleMouseMove} onMouseLeave={() => !controlsLockedRef.current && isPlaying && !mediaError && setShowControls(false)}>
       <div className="absolute inset-0 flex items-center justify-center">
         {visualItem.type === 'video' && (
           <video ref={mainVideoRef} className="w-full h-full object-contain" muted={isMuted} playsInline
@@ -513,7 +536,7 @@ export default function Player() {
         {visualItem.type === 'audio' && (
           <div className="text-center">
             <div className={cn("w-64 h-64 bg-gray-900 rounded-2xl flex items-center justify-center mx-auto mb-8", isPlaying && !mediaError && "animate-pulse-glow")}>
-              <Volume2 className="w-24 h-24 text-[#0E7B35]" />
+              <Volume2 className="w-24 h-24 text-primary" />
             </div>
             <h2 className="text-2xl font-heading font-bold text-white mb-2">{visualItem.title}</h2>
             <p className="text-gray-400">Now Playing</p>
@@ -548,7 +571,7 @@ export default function Player() {
         <div className="max-w-4xl mx-auto">
           <div className="flex items-center gap-4 mb-4">
             <div className="flex-1 bg-gray-700 rounded-full h-1.5 overflow-hidden cursor-pointer" onClick={handleSeek}>
-              <div className="bg-[#0E7B35] h-full rounded-full transition-all duration-100 pointer-events-none" style={{ width: Math.min(progress, 100) + '%' }} />
+              <div className="bg-primary h-full rounded-full transition-all duration-100 pointer-events-none" style={{ width: Math.min(progress, 100) + '%' }} />
             </div>
             <span className="text-xs text-gray-400 font-mono w-16 text-right">{visualIndex + 1} / {visualItemCount}</span>
           </div>
@@ -566,7 +589,7 @@ export default function Player() {
               <button onClick={() => setIsPlaying(!isPlaying)} className="p-3 bg-white/10 hover:bg-white/20 rounded-full text-white transition-colors">
                 {isPlaying ? <Pause className="w-6 h-6" /> : <Play className="w-6 h-6" />}
               </button>
-              <button onClick={() => setIsMuted(!isMuted)} className={cn("p-2 text-white hover:text-[#B9EA38] transition-colors relative", bgAudioLabel && isMuted && "animate-pulse text-[#B9EA38]")}>
+              <button onClick={() => setIsMuted(!isMuted)} className={cn("p-2 text-white hover:text-secondary transition-colors relative", bgAudioLabel && isMuted && "animate-pulse text-secondary")}>
                 {isMuted ? <VolumeX className="w-5 h-5" /> : <Volume2 className="w-5 h-5" />}
                 {bgAudioLabel && isMuted && (
                   <span className="absolute -top-8 left-1/2 -translate-x-1/2 whitespace-nowrap bg-black/80 text-white text-[10px] px-2 py-1 rounded animate-pulse">
@@ -574,7 +597,7 @@ export default function Player() {
                   </span>
                 )}
               </button>
-              <button onClick={toggleFullscreen} className="p-2 text-white hover:text-[#B9EA38] transition-colors">
+              <button onClick={toggleFullscreen} className="p-2 text-white hover:text-secondary transition-colors">
                 {isFullscreen ? <Minimize className="w-5 h-5" /> : <Maximize className="w-5 h-5" />}
               </button>
             </div>
@@ -585,6 +608,53 @@ export default function Player() {
       {showControls && activeSchedule && (
         <div className="absolute top-4 right-4 flex items-center gap-2">
           <span className="px-3 py-1 bg-black/50 rounded-full text-xs text-white font-medium">{activeSchedule.mode === 'loop' ? 'Looping' : 'Once'}</span>
+        </div>
+      )}
+
+      <div className="absolute bottom-4 right-4 flex items-center gap-2">
+        <button
+          onClick={() => setShowShortcuts(prev => !prev)}
+          className={cn(
+            "p-2 rounded-full transition-all",
+            showShortcuts
+              ? "bg-white/20 text-white"
+              : "text-gray-500 hover:text-white hover:bg-white/10 opacity-40 hover:opacity-100"
+          )}
+          title="Keyboard shortcuts (?)"
+        >
+          <Keyboard className="w-4 h-4" />
+        </button>
+        <button
+          onClick={handleLockToggle}
+          className={cn(
+            "p-2 rounded-full transition-all",
+            controlsLocked
+              ? "text-white/30 hover:text-white/60"
+              : "text-gray-500 hover:text-white hover:bg-white/10 opacity-40 hover:opacity-100"
+          )}
+          title={controlsLocked ? "Unlock controls (L)" : "Lock controls (L)"}
+        >
+          {controlsLocked ? <Lock className="w-4 h-4" /> : <LockOpen className="w-4 h-4" />}
+        </button>
+      </div>
+
+      {showShortcuts && (
+        <div className="absolute bottom-16 right-4 bg-black/90 backdrop-blur-sm rounded-xl border border-white/10 p-4 min-w-[200px] animate-in fade-in slide-in-from-bottom-2">
+          <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">Keyboard Shortcuts</p>
+          <div className="space-y-2">
+            {[
+              { key: 'Space', desc: 'Play / Pause' },
+              { key: 'F', desc: 'Toggle fullscreen' },
+              { key: 'M', desc: 'Mute / Unmute' },
+              { key: 'L', desc: 'Lock / Unlock controls' },
+              { key: '?', desc: 'Toggle this help' },
+            ].map(({ key, desc }) => (
+              <div key={key} className="flex items-center justify-between gap-4">
+                <span className="text-xs text-gray-400">{desc}</span>
+                <kbd className="px-1.5 py-0.5 bg-white/10 rounded text-[10px] text-white font-mono min-w-[24px] text-center">{key}</kbd>
+              </div>
+            ))}
+          </div>
         </div>
       )}
     </div>

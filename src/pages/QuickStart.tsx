@@ -48,9 +48,9 @@ export default function QuickStart() {
 
       <div className="absolute inset-0 z-0 overflow-hidden"><div className="wave-bg-2"></div><div className="wave-bg"></div></div>
 
-      <div className="w-full max-w-2xl card p-8 sm:p-10 relative z-10 shadow-2xl shadow-[#0E7B35]/5 bg-white/90 backdrop-blur-xl border border-white/50">
+      <div className="w-full max-w-2xl card p-8 sm:p-10 relative z-10 shadow-2xl shadow-primary/5 bg-white/90 backdrop-blur-xl border border-white/50">
         <div className="text-center mb-8">
-          <div className="w-20 h-20 rounded-2xl mx-auto mb-4 shadow-lg shadow-[#0E7B35]/20 ring-4 ring-white bg-[#0E7B35] flex items-center justify-center">
+          <div className="w-20 h-20 rounded-2xl mx-auto mb-4 shadow-lg shadow-primary/20 ring-4 ring-white bg-primary flex items-center justify-center">
             <img src="/logo.png" alt="JEMIMA" className="w-full h-full object-cover" />
           </div>
           <h2 className="text-2xl font-heading font-bold text-gray-900">{STEPS[currentStep - 1].title}</h2>
@@ -60,10 +60,10 @@ export default function QuickStart() {
         <div className="flex items-center justify-center gap-2 mb-8">
           {STEPS.map((step, i) => (
             <div key={step.id} className="flex items-center gap-2">
-              <div className={cn("w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold transition-colors", currentStep > i + 1 ? "bg-[#0E7B35] text-white" : currentStep === i + 1 ? "bg-[#0E7B35] text-white" : "bg-gray-200 text-gray-500")}>
+              <div className={cn("w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold transition-colors", currentStep > i + 1 ? "bg-primary text-white" : currentStep === i + 1 ? "bg-primary text-white" : "bg-gray-200 text-gray-500")}>
                 {currentStep > i + 1 ? <Check className="w-4 h-4" /> : i + 1}
               </div>
-              {i < STEPS.length - 1 && <div className={cn("w-8 h-1 rounded-full", currentStep > i + 1 ? "bg-[#0E7B35]" : "bg-gray-200")} />}
+              {i < STEPS.length - 1 && <div className={cn("w-8 h-1 rounded-full", currentStep > i + 1 ? "bg-primary" : "bg-gray-200")} />}
             </div>
           ))}
         </div>
@@ -74,9 +74,9 @@ export default function QuickStart() {
               <h3 className="text-xl font-heading font-semibold text-gray-900">Welcome to {APP_CONFIG.name}</h3>
               <p className="text-gray-600">Set up your digital signage in seconds. Add your media files to <code className="bg-gray-100 px-1.5 py-0.5 rounded text-sm">{APP_CONFIG.contentRoot}</code> and manage them from here.</p>
               <div className="grid grid-cols-3 gap-4 py-4">
-                <div className="p-4 bg-gray-50 rounded-xl"><Film className="w-8 h-8 text-[#0E7B35] mx-auto mb-2" /><p className="text-sm font-medium text-gray-700">Video</p></div>
-                <div className="p-4 bg-gray-50 rounded-xl"><Music className="w-8 h-8 text-[#0E7B35] mx-auto mb-2" /><p className="text-sm font-medium text-gray-700">Audio</p></div>
-                <div className="p-4 bg-gray-50 rounded-xl"><ImageIcon className="w-8 h-8 text-[#0E7B35] mx-auto mb-2" /><p className="text-sm font-medium text-gray-700">Images</p></div>
+                <div className="p-4 bg-gray-50 rounded-xl"><Film className="w-8 h-8 text-primary mx-auto mb-2" /><p className="text-sm font-medium text-gray-700">Video</p></div>
+                <div className="p-4 bg-gray-50 rounded-xl"><Music className="w-8 h-8 text-primary mx-auto mb-2" /><p className="text-sm font-medium text-gray-700">Audio</p></div>
+                <div className="p-4 bg-gray-50 rounded-xl"><ImageIcon className="w-8 h-8 text-primary mx-auto mb-2" /><p className="text-sm font-medium text-gray-700">Images</p></div>
               </div>
             </div>
           )}
@@ -86,7 +86,7 @@ export default function QuickStart() {
               <div>
                 <label className="text-sm font-semibold text-gray-700 block mb-2">Venue Name</label>
                 <input type="text" value={venueName} onChange={(e) => setVenueName(e.target.value)} placeholder="e.g. My Cafe, Studio A, Lobby Display"
-                  className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-lg text-sm focus:outline-none focus:border-[#0E7B35] focus:ring-1 focus:ring-[#0E7B35]" />
+                  className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-lg text-sm focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary" />
                 <p className="text-xs text-gray-500 mt-2">This will appear on your dashboard and player.</p>
               </div>
             </div>
@@ -94,7 +94,7 @@ export default function QuickStart() {
 
           {currentStep === 3 && (
             <div className="text-center space-y-6">
-              <div className="w-20 h-20 bg-green-50 rounded-full flex items-center justify-center mx-auto"><Check className="w-10 h-10 text-[#0E7B35]" /></div>
+              <div className="w-20 h-20 bg-green-50 rounded-full flex items-center justify-center mx-auto"><Check className="w-10 h-10 text-primary" /></div>
               <h3 className="text-xl font-heading font-semibold text-gray-900">You're All Set!</h3>
               <p className="text-gray-600">Sample content and schedule have been created. Add your own media files to get started.</p>
               <div className="bg-gray-50 rounded-xl p-4">
@@ -112,12 +112,12 @@ export default function QuickStart() {
           ) : <div />}
           {currentStep < 3 ? (
             <button onClick={handleNext} disabled={currentStep === 2 && !venueName.trim()}
-              className="flex items-center gap-2 px-6 py-2.5 bg-[#0E7B35] hover:bg-[#0A5E28] disabled:opacity-50 disabled:cursor-not-allowed text-white rounded-lg text-sm font-semibold transition-colors shadow-md">
+              className="flex items-center gap-2 px-6 py-2.5 bg-primary hover:bg-primary-dark disabled:opacity-50 disabled:cursor-not-allowed text-white rounded-lg text-sm font-semibold transition-colors shadow-md">
               Continue <ArrowRight className="w-4 h-4" />
             </button>
           ) : (
             <button onClick={handleFinish} disabled={isCreating}
-              className="flex items-center gap-2 px-6 py-2.5 bg-[#0E7B35] hover:bg-[#0A5E28] disabled:opacity-70 text-white rounded-lg text-sm font-semibold transition-colors shadow-md">
+              className="flex items-center gap-2 px-6 py-2.5 bg-primary hover:bg-primary-dark disabled:opacity-70 text-white rounded-lg text-sm font-semibold transition-colors shadow-md">
               {isCreating ? <span className="w-4 h-4 rounded-full border-2 border-white/30 border-t-white animate-spin" /> : <Play className="w-4 h-4" />}
               {isCreating ? 'Setting up...' : 'Go to Dashboard'}
             </button>

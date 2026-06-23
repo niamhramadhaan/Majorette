@@ -192,8 +192,8 @@ export default function FilmIngest() {
               const Icon = option.icon;
               return (
                 <button key={option.value} type="button" onClick={() => { setContentType(option.value); setEntries([]); }}
-                  className={cn("p-6 rounded-xl border-2 text-center transition-colors", contentType === option.value ? "border-[#0E7B35] bg-[#0E7B35]/5" : "border-gray-200 hover:border-gray-300")}>
-                  <Icon className="w-8 h-8 mx-auto mb-2 text-[#0E7B35]" />
+                  className={cn("p-6 rounded-xl border-2 text-center transition-colors", contentType === option.value ? "border-primary bg-primary/5" : "border-gray-200 hover:border-gray-300")}>
+                  <Icon className="w-8 h-8 mx-auto mb-2 text-primary" />
                   <p className="font-medium text-gray-700">{option.label}</p>
                 </button>
               );
@@ -245,7 +245,7 @@ export default function FilmIngest() {
                       }
                     });
                   }
-                }} className="text-sm text-[#0E7B35] hover:text-[#0A5E28] font-medium">
+                }} className="text-sm text-primary hover:text-primary-dark font-medium">
                   {serverFiles.every(f => isSelected(f)) ? 'Deselect All' : 'Select All'}
                 </button>
               )}
@@ -266,7 +266,7 @@ export default function FilmIngest() {
             </div>
           ) : isLoadingFiles ? (
             <div className="p-8 text-center">
-              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#0E7B35] mx-auto"></div>
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto"></div>
               <p className="text-sm text-gray-500 mt-3">Loading files...</p>
             </div>
           ) : serverFiles.length === 0 ? (
@@ -282,10 +282,10 @@ export default function FilmIngest() {
                 return (
                   <div key={file.path} onClick={() => toggleFile(file)}
                     className={cn("p-3 rounded-lg border cursor-pointer transition-all flex items-center justify-between",
-                      selected ? "border-[#0E7B35] bg-[#0E7B35]/5" : "border-gray-200 hover:border-gray-300 bg-white")}>
+                      selected ? "border-primary bg-primary/5" : "border-gray-200 hover:border-gray-300 bg-white")}>
                     <div className="flex items-center gap-3">
                       <div className={cn("w-5 h-5 rounded border-2 flex items-center justify-center transition-colors",
-                        selected ? "border-[#0E7B35] bg-[#0E7B35]" : "border-gray-300")}>
+                        selected ? "border-primary bg-primary" : "border-gray-300")}>
                         {selected && <Check className="w-3 h-3 text-white" />}
                       </div>
                       {contentType === 'video' ? <Film className="w-4 h-4 text-gray-400" /> : contentType === 'audio' ? <Music className="w-4 h-4 text-gray-400" /> : <ImageIcon className="w-4 h-4 text-gray-400" />}
@@ -327,21 +327,21 @@ export default function FilmIngest() {
                         </button>
                       </div>
                       <input type="text" value={entry.title} onChange={(e) => updateEntry(entry.file.path, { title: e.target.value })}
-                        className="w-full mt-1 px-3 py-1.5 bg-white border border-gray-200 rounded-lg text-sm focus:outline-none focus:border-[#0E7B35] focus:ring-1 focus:ring-[#0E7B35]" />
+                        className="w-full mt-1 px-3 py-1.5 bg-white border border-gray-200 rounded-lg text-sm focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary" />
                     </div>
                   </div>
                   <div className="flex items-center gap-3">
                     <div className="flex items-center gap-2 flex-1">
                       <label className="text-xs text-gray-500 whitespace-nowrap">Duration (s)</label>
                       <input type="number" value={entry.duration} onChange={(e) => updateEntry(entry.file.path, { duration: parseInt(e.target.value) || 10, durationAutoDetected: false })} min="1"
-                        className="w-20 px-2 py-1 bg-white border border-gray-200 rounded-lg text-sm focus:outline-none focus:border-[#0E7B35] focus:ring-1 focus:ring-[#0E7B35]" />
+                        className="w-20 px-2 py-1 bg-white border border-gray-200 rounded-lg text-sm focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary" />
                       {entry.isDetectingDuration && (
                         <div className="flex items-center gap-1 text-xs text-gray-500">
                           <Loader2 className="w-3 h-3 animate-spin" /> Detecting...
                         </div>
                       )}
                       {entry.durationAutoDetected && !entry.isDetectingDuration && (
-                        <div className="flex items-center gap-1 text-xs text-[#0E7B35]">
+                        <div className="flex items-center gap-1 text-xs text-primary">
                           <CheckCircle2 className="w-3 h-3" /> Auto
                         </div>
                       )}
@@ -356,7 +356,7 @@ export default function FilmIngest() {
         <div className="flex justify-end gap-3 pt-4 border-t border-gray-100">
           <button type="button" onClick={() => navigate('/films')} className="px-6 py-2.5 bg-white border border-gray-200 text-gray-700 rounded-lg text-sm font-semibold hover:bg-gray-50 transition-colors cursor-pointer">Cancel</button>
           <button type="submit" disabled={isSubmitting || entries.length === 0}
-            className="px-6 py-2.5 bg-[#0E7B35] hover:bg-[#0A5E28] disabled:opacity-70 text-white rounded-lg text-sm font-semibold transition-colors flex items-center gap-2 shadow-sm cursor-pointer">
+            className="px-6 py-2.5 bg-primary hover:bg-primary-dark disabled:opacity-70 text-white rounded-lg text-sm font-semibold transition-colors flex items-center gap-2 shadow-sm cursor-pointer">
             {isSubmitting ? <span className="w-4 h-4 rounded-full border-2 border-white/30 border-t-white animate-spin"></span> : <Film className="w-4 h-4" />}
             {isSubmitting ? 'Adding...' : 'Add ' + entries.length + ' Item' + (entries.length !== 1 ? 's' : '')}
           </button>

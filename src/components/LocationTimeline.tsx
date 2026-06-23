@@ -27,7 +27,7 @@ export default function LocationTimeline({ location, handleAction, currentTime: 
               <ChevronLeft className="w-5 h-5" />
             </button>
             <div className="flex items-center gap-2 px-3 text-sm font-medium text-gray-700 min-w-[140px] justify-center">
-              <CalendarIcon className="w-4 h-4 text-[#0E7B35]" />
+              <CalendarIcon className="w-4 h-4 text-primary" />
               {format(selectedDate, 'MMM dd, yyyy')}
             </div>
             <button 
@@ -42,7 +42,7 @@ export default function LocationTimeline({ location, handleAction, currentTime: 
         <div className="hidden sm:flex items-center gap-4 text-xs font-medium text-gray-500">
           <div className="flex items-center gap-1.5"><div className="w-2.5 h-2.5 rounded-full bg-blue-400"></div> Ads/Bumper</div>
           <div className="flex items-center gap-1.5"><div className="w-2.5 h-2.5 rounded-full bg-[#FAEF06]"></div> Upcoming</div>
-          <div className="flex items-center gap-1.5"><div className="w-2.5 h-2.5 rounded-full bg-[#B9EA38]"></div> Playing</div>
+          <div className="flex items-center gap-1.5"><div className="w-2.5 h-2.5 rounded-full bg-secondary"></div> Playing</div>
           <div className="flex items-center gap-1.5"><div className="w-2.5 h-2.5 rounded-full bg-gray-300"></div> Done</div>
           <div className="flex items-center gap-1.5"><div className="w-2.5 h-2.5 rounded-full bg-red-500"></div> Failed</div>
         </div>
@@ -90,7 +90,7 @@ export default function LocationTimeline({ location, handleAction, currentTime: 
                   onClick={() => handleAction?.(`View Details for ${screen.name}`)}
                 >
                   <div className="flex flex-col">
-                    <span className="text-sm font-heading font-bold text-gray-800 group-hover:text-[#0E7B35] transition-colors flex items-center gap-2">
+                    <span className="text-sm font-heading font-bold text-gray-800 group-hover:text-primary transition-colors flex items-center gap-2">
                        {screen.name}
                        {screen.synced ? (
                          <div className="w-1.5 h-1.5 rounded-full bg-green-500" title="Synced"></div>
@@ -126,7 +126,7 @@ export default function LocationTimeline({ location, handleAction, currentTime: 
                         { duration: 10, title: "Ads", status: "done", color: "bg-blue-100 text-blue-700 border-blue-200" },
                         { duration: 120, title: "Sample Feature Film A", status: "done", color: "bg-gray-200 text-gray-600 border-gray-300" },
                         { duration: 10, title: "Bumper & Ads", status: "done", color: "bg-blue-100 text-blue-700 border-blue-200" },
-                        { duration: 130, title: "Action Blockbuster B", status: "playing", color: "bg-[#B9EA38]/30 text-[#0A5E28] border-[#B9EA38]" },
+                        { duration: 130, title: "Action Blockbuster B", status: "playing", color: "bg-secondary/30 text-primary-dark border-secondary" },
                         { duration: 10, title: "Ads", status: "upcoming", color: "bg-blue-50 text-blue-500 border-blue-200" },
                         { duration: 110, title: "Indie Drama Showcase", status: "upcoming", color: "bg-[#FAEF06]/30 text-[#8a8100] border-[#FAEF06]" },
                         { duration: 10, title: "Ads", status: "upcoming", color: "bg-blue-50 text-blue-500 border-blue-200" },
@@ -185,7 +185,7 @@ export default function LocationTimeline({ location, handleAction, currentTime: 
                       const items = [
                         { duration: 120, title: "Indie Drama Showcase", status: "done", color: "bg-gray-200 text-gray-600 border-gray-300" },
                         { duration: 15, title: "Ads", status: "done", color: "bg-blue-100 text-blue-700 border-blue-200" },
-                        { duration: 120, title: "Indie Drama Showcase", status: "playing", color: "bg-[#B9EA38]/30 text-[#0A5E28] border-[#B9EA38]" },
+                        { duration: 120, title: "Indie Drama Showcase", status: "playing", color: "bg-secondary/30 text-primary-dark border-secondary" },
                         { duration: 20, title: "Ads & Trailers", status: "upcoming", color: "bg-blue-50 text-blue-500 border-blue-200" },
                         { duration: 130, title: "Action Blockbuster B", status: "upcoming", color: "bg-[#FAEF06]/30 text-[#8a8100] border-[#FAEF06]" },
                         { duration: 15, title: "Ads", status: "upcoming", color: "bg-blue-50 text-blue-500 border-blue-200" },
@@ -238,7 +238,7 @@ function ShowBlock({ start, duration, title, status, color, onClick }: { start: 
          {title}
       </div>
       <div className="text-[10px] font-medium opacity-80 mt-0.5 truncate flex items-center gap-1.5">
-          {status === 'playing' && <div className="w-1.5 h-1.5 rounded-full bg-[#0E7B35] animate-pulse"></div>}
+          {status === 'playing' && <div className="w-1.5 h-1.5 rounded-full bg-primary animate-pulse"></div>}
           {Math.floor(start)}:{Math.round((start%1)*60).toString().padStart(2, '0')} - {Math.floor(start + duration/60)}:{Math.round(((start + duration/60)%1)*60).toString().padStart(2, '0')}
       </div>
     </div>

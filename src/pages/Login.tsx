@@ -74,10 +74,10 @@ export default function Login() {
         <div className="wave-bg"></div>
       </div>
 
-      <div className="w-full max-w-md card p-8 sm:p-10 relative z-10 shadow-2xl shadow-[#0E7B35]/5 bg-white/90 backdrop-blur-xl border border-white/50">
+      <div className="w-full max-w-md card p-8 sm:p-10 relative z-10 shadow-2xl shadow-primary/5 bg-white/90 backdrop-blur-xl border border-white/50">
         
         <div className="text-center mb-8">
-          <div className="w-20 h-20 rounded-2xl overflow-hidden mx-auto mb-4 shadow-lg shadow-[#0E7B35]/20 ring-4 ring-white bg-[#0E7B35] flex items-center justify-center">
+          <div className="w-20 h-20 rounded-2xl overflow-hidden mx-auto mb-4 shadow-lg shadow-primary/20 ring-4 ring-white bg-primary flex items-center justify-center">
             <img src="/logo.png" alt="JEMIMA" className="w-full h-full object-cover" />
           </div>
           <h2 className="text-2xl font-heading font-bold text-gray-900">
@@ -106,7 +106,7 @@ export default function Login() {
                 onChange={(e) => setName(e.target.value)}
                 placeholder="What should we call you?" 
                 autoFocus
-                className="w-full pl-10 pr-4 py-2.5 bg-gray-50 border border-gray-200 rounded-lg text-sm focus:outline-none focus:border-[#0E7B35] focus:ring-1 focus:ring-[#0E7B35] transition-colors focus:bg-white"
+                className="w-full pl-10 pr-4 py-2.5 bg-gray-50 border border-gray-200 rounded-lg text-sm focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary transition-colors focus:bg-white"
               />
             </div>
           </div>
@@ -115,7 +115,7 @@ export default function Login() {
             <button 
               type="submit" 
               disabled={isLoading}
-              className="w-full py-2.5 bg-[#0E7B35] hover:bg-[#0A5E28] disabled:opacity-70 text-white rounded-lg text-sm font-semibold transition-all flex items-center justify-center gap-2 shadow-md shadow-[#0E7B35]/20 hover:shadow-lg hover:shadow-[#0E7B35]/30 disabled:hover:shadow-none"
+              className="w-full py-2.5 bg-primary hover:bg-primary-dark disabled:opacity-70 text-white rounded-lg text-sm font-semibold transition-all flex items-center justify-center gap-2 shadow-md shadow-primary/20 hover:shadow-lg hover:shadow-primary/30 disabled:hover:shadow-none"
             >
               {isLoading ? (
                 <span className="w-5 h-5 rounded-full border-[2.5px] border-white/30 border-t-white animate-spin"></span>

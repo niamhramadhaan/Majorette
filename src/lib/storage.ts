@@ -78,6 +78,7 @@ export const DEFAULT_SETTINGS: AppSettings = {
     videoWithOverlay: true,
     image: true,
   },
+  accentTheme: 'emerald',
 };
 
 export const DEFAULT_VENUE: Venue = {

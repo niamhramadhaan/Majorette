@@ -4,7 +4,7 @@ import { LayoutDashboard, MapPin, Film, CalendarDays, Settings, X } from 'lucide
 import { cn } from '../lib/utils';
 import { APP_CONFIG } from '../config/app';
 
-export default function Sidebar({ open, setOpen }: { open: boolean; setOpen: (o: boolean) => void }) {
+export default function Sidebar({ open, setOpen, requestNavigation }: { open: boolean; setOpen: (o: boolean) => void; requestNavigation: (path: string) => void }) {
   const location = useLocation();
 
   const navItems = [
@@ -13,6 +13,12 @@ export default function Sidebar({ open, setOpen }: { open: boolean; setOpen: (o:
     { name: 'Schedules', path: '/schedule', icon: CalendarDays },
     { name: 'Locations', path: '/locations', icon: MapPin },
   ];
+
+  const handleNavClick = (e: React.MouseEvent, path: string) => {
+    e.preventDefault();
+    if (window.innerWidth < 768) setOpen(false);
+    requestNavigation(path);
+  };
 
   return (
     <aside 
@@ -24,12 +30,12 @@ export default function Sidebar({ open, setOpen }: { open: boolean; setOpen: (o:
     >
       <div className="flex items-center justify-between lg:justify-start h-20 px-6 lg:px-6 md:justify-center md:px-0 border-b border-gray-50">
         <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-xl overflow-hidden shadow-sm shadow-[#0E7B35]/20 flex-shrink-0 bg-[#0E7B35] flex items-center justify-center">
+          <div className="w-10 h-10 rounded-xl overflow-hidden shadow-sm shadow-primary/20 flex-shrink-0 bg-primary flex items-center justify-center">
             <img src="/logo.png" alt="JEMIMA" className="w-full h-full object-cover" />
           </div>
           <div className="hidden lg:block">
-            <h1 className="font-heading font-bold text-lg text-[#0E7B35] leading-tight">{APP_CONFIG.name}</h1>
-            <p className="text-[9px] text-[#559D71] font-medium tracking-wide uppercase truncate max-w-[140px] leading-tight" title={APP_CONFIG.tagline}>{APP_CONFIG.tagline}</p>
+            <h1 className="font-heading font-bold text-lg text-primary leading-tight">{APP_CONFIG.name}</h1>
+            <p className="text-[9px] text-muted-teal font-medium tracking-wide uppercase truncate max-w-[140px] leading-tight" title={APP_CONFIG.tagline}>{APP_CONFIG.tagline}</p>
           </div>
         </div>
         <button className="md:hidden text-gray-400 hover:text-gray-600" onClick={() => setOpen(false)}>
@@ -45,21 +51,19 @@ export default function Sidebar({ open, setOpen }: { open: boolean; setOpen: (o:
             <NavLink
               key={item.path}
               to={item.path}
-              onClick={() => {
-                if (window.innerWidth < 768) setOpen(false);
-              }}
+              onClick={(e) => handleNavClick(e, item.path)}
               className={({ isActive }) => cn(
                 "flex items-center rounded-lg text-sm font-medium transition-all group",
                 "px-3 py-2.5 md:justify-center lg:justify-start",
                 isActive 
-                  ? "bg-[#0E7B35]/10 text-[#0E7B35]" 
+                  ? "bg-primary/10 text-primary" 
                   : "text-gray-500 hover:bg-gray-50 hover:text-gray-900"
               )}
               title={item.name}
             >
               <item.icon className={cn(
                 "w-5 h-5 transition-colors flex-shrink-0", 
-                isActive ? "text-[#0E7B35]" : "text-gray-400 group-hover:text-gray-600"
+                isActive ? "text-primary" : "text-gray-400 group-hover:text-gray-600"
               )} />
               <span className="truncate hidden lg:block lg:ml-3">{item.name}</span>
             </NavLink>
@@ -70,14 +74,12 @@ export default function Sidebar({ open, setOpen }: { open: boolean; setOpen: (o:
       <div className="p-4 md:p-2 lg:p-4 border-t border-gray-100 flex flex-col gap-1">
         <NavLink
           to="/settings"
-          onClick={() => {
-            if (window.innerWidth < 768) setOpen(false);
-          }}
+          onClick={(e) => handleNavClick(e, '/settings')}
           className={({ isActive }) => cn(
             "flex items-center rounded-lg text-sm font-medium transition-all group",
             "px-3 py-2.5 md:justify-center lg:justify-start",
             isActive 
-              ? "bg-[#0E7B35]/10 text-[#0E7B35] border border-[#0E7B35]/20" 
+              ? "bg-primary/10 text-primary border border-primary/20" 
               : "text-gray-500 hover:bg-gray-50 hover:text-gray-900 border border-transparent"
           )}
           title="Settings"
@@ -86,7 +88,7 @@ export default function Sidebar({ open, setOpen }: { open: boolean; setOpen: (o:
              <>
                <Settings className={cn(
                  "w-5 h-5 transition-colors flex-shrink-0", 
-                 isActive ? "text-[#0E7B35]" : "text-gray-400 group-hover:text-gray-600"
+                 isActive ? "text-primary" : "text-gray-400 group-hover:text-gray-600"
                )} />
                <span className="hidden lg:block lg:ml-3">Settings</span>
              </>
