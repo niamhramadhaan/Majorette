@@ -197,11 +197,11 @@ export default function Schedule() {
               placeholder="Search schedules..."
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              className="pl-9 pr-4 py-2 bg-white border border-gray-200 rounded-lg text-sm w-full sm:w-64 focus:outline-none focus:border-[#0E7B35] focus:ring-1 focus:ring-[#0E7B35]"
+              className="pl-9 pr-4 py-2 bg-white border border-gray-200 rounded-lg text-sm w-full sm:w-64 focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary"
             />
           </div>
           <select
-            className="bg-white border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-[#0E7B35] focus:ring-1 focus:ring-[#0E7B35]"
+            className="bg-white border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary"
             value={sortOrder}
             onChange={(e) => setSortOrder(e.target.value as "recent" | "latest" | "next")}
           >
@@ -210,7 +210,7 @@ export default function Schedule() {
             <option value="next">Next Play</option>
           </select>
           <select
-            className="bg-white border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-[#0E7B35] focus:ring-1 focus:ring-[#0E7B35]"
+            className="bg-white border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary"
             value={statusFilter}
             onChange={(e) => setStatusFilter(e.target.value as "all" | ScheduleStatus)}
           >
@@ -237,7 +237,7 @@ export default function Schedule() {
               if (showChecklist) setSelectedSchedules([]);
             }}
             className={cn("flex items-center justify-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors cursor-pointer",
-              showChecklist ? "bg-[#0E7B35]/10 text-[#0E7B35] border border-[#0E7B35]/20" : "bg-white border border-gray-200 hover:bg-gray-50 text-gray-700"
+              showChecklist ? "bg-primary/10 text-primary border border-primary/20" : "bg-white border border-gray-200 hover:bg-gray-50 text-gray-700"
             )}
           >
             <CheckSquare className="w-4 h-4" />
@@ -245,7 +245,7 @@ export default function Schedule() {
           </button>
           <button
             onClick={() => navigate("/schedule/builder")}
-            className="flex items-center justify-center gap-2 bg-[#0E7B35] hover:bg-[#0A5E28] text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors cursor-pointer"
+            className="flex items-center justify-center gap-2 bg-primary hover:bg-primary-dark text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors cursor-pointer"
           >
             <Plus className="w-4 h-4" />
             New Schedule
@@ -267,7 +267,7 @@ export default function Schedule() {
           <p className="text-gray-500 mb-6">Create your first schedule to start playing content.</p>
           <button
             onClick={() => navigate("/schedule/builder")}
-            className="inline-flex items-center gap-2 px-6 py-3 bg-[#0E7B35] hover:bg-[#0A5E28] text-white rounded-lg text-sm font-medium transition-colors"
+            className="inline-flex items-center gap-2 px-6 py-3 bg-primary hover:bg-primary-dark text-white rounded-lg text-sm font-medium transition-colors"
           >
             <Plus className="w-4 h-4" />
             Create Schedule
@@ -284,7 +284,7 @@ export default function Schedule() {
                       <th className="px-6 py-4 font-medium tracking-wider w-12 text-center">
                         <input 
                           type="checkbox" 
-                          className="rounded border-gray-300 text-[#0E7B35] focus:ring-[#0E7B35] cursor-pointer"
+                          className="rounded border-gray-300 text-primary focus:ring-primary cursor-pointer"
                           checked={selectedSchedules.length > 0 && selectedSchedules.length === sortedSchedules.length}
                           onChange={handleToggleSelectAll}
                         />
@@ -307,13 +307,13 @@ export default function Schedule() {
                     .map((schedule) => (
                       <tr
                         key={schedule.id}
-                        className={cn("hover:bg-gray-50/50 transition-colors group", activeSchedule?.id === schedule.id && "bg-[#0E7B35]/[0.02]")}
+                        className={cn("hover:bg-gray-50/50 transition-colors group", activeSchedule?.id === schedule.id && "bg-primary/[0.02]")}
                       >
                         {showChecklist && (
                           <td className="px-6 py-4 text-center">
                             <input 
                               type="checkbox" 
-                              className="rounded border-gray-300 text-[#0E7B35] focus:ring-[#0E7B35] cursor-pointer"
+                              className="rounded border-gray-300 text-primary focus:ring-primary cursor-pointer"
                               checked={selectedSchedules.includes(schedule.id)}
                               onChange={() => handleToggleSelect(schedule.id)}
                             />
@@ -322,17 +322,17 @@ export default function Schedule() {
                         <td className="px-6 py-4">
                           <div className="flex items-center gap-3">
                             <div className={cn("w-8 h-8 rounded-full flex items-center justify-center",
-                              activeSchedule?.id === schedule.id ? "bg-[#B9EA38]/30 text-[#0A5E28]" : "bg-gray-100 text-gray-400"
+                              activeSchedule?.id === schedule.id ? "bg-secondary/30 text-primary-dark" : "bg-gray-100 text-gray-400"
                             )}>
                               <Play className="w-4 h-4 ml-0.5" />
                             </div>
                             <div>
                               <div className="flex items-center gap-2">
-                                <span className="font-medium text-gray-900 group-hover:text-[#0E7B35] transition-colors">
+                                <span className="font-medium text-gray-900 group-hover:text-primary transition-colors">
                                   {schedule.name}
                                 </span>
                                 {activeSchedule?.id === schedule.id && (
-                                  <span className="px-1.5 py-0.5 bg-[#B9EA38]/30 text-[#0A5E28] rounded text-[10px] font-bold uppercase">Now</span>
+                                  <span className="px-1.5 py-0.5 bg-secondary/30 text-primary-dark rounded text-[10px] font-bold uppercase">Now</span>
                                 )}
                               </div>
                             </div>
@@ -366,7 +366,7 @@ export default function Schedule() {
                             const status = getEffectiveStatus(schedule);
                             return (
                               <span className={cn("inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold uppercase",
-                                status === 'playing' ? "bg-[#B9EA38]/30 text-[#0A5E28]" :
+                                status === 'playing' ? "bg-secondary/30 text-primary-dark" :
                                 status === 'done' ? "bg-gray-100 text-gray-400" :
                                 "bg-blue-50 text-blue-600"
                               )}>
@@ -388,7 +388,7 @@ export default function Schedule() {
                                     setRecreateStartTime(d.toISOString());
                                   }}
                                   title="Play Again"
-                                  className="p-1.5 hover:text-[#0E7B35] rounded-md hover:bg-[#0E7B35]/10 cursor-pointer"
+                                  className="p-1.5 hover:text-primary rounded-md hover:bg-primary/10 cursor-pointer"
                                 >
                                   <RotateCcw className="w-4 h-4" />
                                 </button>
@@ -403,7 +403,7 @@ export default function Schedule() {
                                 className={cn("p-1.5 rounded-md cursor-pointer",
                                   schedule.status === 'done'
                                     ? "text-gray-200 cursor-not-allowed"
-                                    : "hover:text-[#0E7B35] hover:bg-[#0E7B35]/10"
+                                    : "hover:text-primary hover:bg-primary/10"
                                 )}
                               >
                                 <Edit className="w-4 h-4" />
@@ -488,7 +488,7 @@ export default function Schedule() {
             <div className="p-6 space-y-4">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-full bg-[#0E7B35]/10 text-[#0E7B35] flex items-center justify-center">
+                  <div className="w-10 h-10 rounded-full bg-primary/10 text-primary flex items-center justify-center">
                     <RotateCcw className="w-5 h-5" />
                   </div>
                   <div>
@@ -524,7 +524,7 @@ export default function Schedule() {
                     onChange={(e) => {
                       try { setRecreateStartTime(new Date(e.target.value).toISOString()); } catch {}
                     }}
-                    className="w-full px-3 py-2 bg-white border border-gray-200 rounded-lg text-sm focus:outline-none focus:border-[#0E7B35] focus:ring-1 focus:ring-[#0E7B35]"
+                    className="w-full px-3 py-2 bg-white border border-gray-200 rounded-lg text-sm focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary"
                   />
                 </div>
                 <div>
@@ -532,7 +532,7 @@ export default function Schedule() {
                   <select
                     value={recreateMode}
                     onChange={(e) => setRecreateMode(e.target.value as 'loop' | 'once')}
-                    className="w-full px-3 py-2 bg-white border border-gray-200 rounded-lg text-sm focus:outline-none focus:border-[#0E7B35] focus:ring-1 focus:ring-[#0E7B35]"
+                    className="w-full px-3 py-2 bg-white border border-gray-200 rounded-lg text-sm focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary"
                   >
                     <option value="loop">Loop</option>
                     <option value="once">Play Once</option>
@@ -542,7 +542,7 @@ export default function Schedule() {
             </div>
             <div className="p-4 border-t border-gray-100 bg-gray-50 flex justify-end gap-3">
               <button onClick={() => setRecreateFromSchedule(null)} className="px-4 py-2 text-sm font-medium text-gray-600 hover:bg-gray-200 bg-white border border-gray-200 rounded-lg transition-colors">Cancel</button>
-              <button onClick={handleRecreate} className="px-5 py-2 text-sm font-medium text-white bg-[#0E7B35] hover:bg-[#0A5E28] rounded-lg transition-colors shadow-sm">
+              <button onClick={handleRecreate} className="px-5 py-2 text-sm font-medium text-white bg-primary hover:bg-primary-dark rounded-lg transition-colors shadow-sm">
                 Create Schedule
               </button>
             </div>

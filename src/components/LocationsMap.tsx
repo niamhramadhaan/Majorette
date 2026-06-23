@@ -21,7 +21,7 @@ export function LocationsMap({ locations, onLocationSelect }: { locations: Locat
                   {loc.name}
                   <div className="text-[9px] text-gray-500 font-normal">{loc.screens} Screens &bull; {loc.status}</div>
                 </div>
-                <div className="w-8 h-8 bg-[#0E7B35] rounded-full flex items-center justify-center text-white shadow-md border-2 border-white group-hover:scale-110 transition-transform">
+                <div className="w-8 h-8 bg-primary rounded-full flex items-center justify-center text-white shadow-md border-2 border-white group-hover:scale-110 transition-transform">
                   <span className="text-[10px] font-bold">{loc.screens}</span>
                 </div>
               </div>

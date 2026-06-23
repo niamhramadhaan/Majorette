@@ -104,7 +104,7 @@ export default function Films() {
               if (val) setSearchParams({ search: val }, { replace: true });
               else setSearchParams({}, { replace: true });
             }}
-              className="pl-9 pr-4 py-2 bg-white border border-gray-200 rounded-lg text-sm w-full sm:w-64 focus:outline-none focus:border-[#0E7B35] focus:ring-1 focus:ring-[#0E7B35]" />
+              className="pl-9 pr-4 py-2 bg-white border border-gray-200 rounded-lg text-sm w-full sm:w-64 focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary" />
           </div>
         </div>
         <div className="flex items-center gap-2">
@@ -116,11 +116,11 @@ export default function Films() {
           {content.length > 0 && (
             <button onClick={() => { setShowChecklist(!showChecklist); if (showChecklist) setSelectedFilms([]); }}
               className={cn("flex items-center justify-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors cursor-pointer",
-                showChecklist ? "bg-[#0E7B35]/10 text-[#0E7B35] border border-[#0E7B35]/20" : "bg-white border border-gray-200 hover:bg-gray-50 text-gray-700")}>
+                showChecklist ? "bg-primary/10 text-primary border border-primary/20" : "bg-white border border-gray-200 hover:bg-gray-50 text-gray-700")}>
               <CheckSquare className="w-4 h-4" /> Checklist
             </button>
           )}
-          <button onClick={() => navigate('/films/ingest')} className="flex items-center justify-center gap-2 bg-[#0E7B35] hover:bg-[#0A5E28] text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors cursor-pointer">
+          <button onClick={() => navigate('/films/ingest')} className="flex items-center justify-center gap-2 bg-primary hover:bg-primary-dark text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors cursor-pointer">
             <UploadCloud className="w-4 h-4" /> Add Content
           </button>
         </div>
@@ -135,21 +135,21 @@ export default function Films() {
       <div className="flex gap-2 pb-2 overflow-x-auto hide-scrollbar">
         {TABS.map((tab) => (
           <button key={tab} onClick={() => { setActiveTab(tab); setCurrentPage(1); }}
-            className={cn("px-4 py-1.5 rounded-full text-sm font-medium whitespace-nowrap transition-colors border", activeTab === tab ? "bg-[#0E7B35] text-white border-[#0E7B35]" : "bg-white text-gray-600 hover:bg-gray-50 border-gray-200")}>
+            className={cn("px-4 py-1.5 rounded-full text-sm font-medium whitespace-nowrap transition-colors border", activeTab === tab ? "bg-primary text-white border-primary" : "bg-white text-gray-600 hover:bg-gray-50 border-gray-200")}>
             {tab}
           </button>
         ))}
       </div>
 
       {isLoading ? (
-        <div className="flex-1 flex items-center justify-center"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#0E7B35]"></div></div>
+        <div className="flex-1 flex items-center justify-center"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div></div>
       ) : content.length === 0 ? (
         <div className="flex-1 flex items-center justify-center">
           <div className="text-center">
             <Film className="w-16 h-16 text-gray-300 mx-auto mb-4" />
             <h3 className="text-lg font-heading font-semibold text-gray-900 mb-2">No Content Yet</h3>
             <p className="text-gray-500 mb-6">Add media files to get started.</p>
-            <button onClick={() => navigate('/films/ingest')} className="inline-flex items-center gap-2 px-6 py-3 bg-[#0E7B35] hover:bg-[#0A5E28] text-white rounded-lg text-sm font-medium transition-colors">
+            <button onClick={() => navigate('/films/ingest')} className="inline-flex items-center gap-2 px-6 py-3 bg-primary hover:bg-primary-dark text-white rounded-lg text-sm font-medium transition-colors">
               <UploadCloud className="w-4 h-4" /> Add Content
             </button>
           </div>
@@ -159,12 +159,12 @@ export default function Films() {
           <div className="flex-1 overflow-y-auto mb-4">
             <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4 pb-4">
               {filteredContent.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage).map((item) => (
-                <div key={item.id} className={cn("card p-5 group hover:border-[#B9EA38]/50 transition-colors flex flex-col h-full relative overflow-hidden cursor-pointer",
-                  showChecklist && selectedFilms.includes(item.id) && "border-[#0E7B35] bg-[#0E7B35]/5")}
+                <div key={item.id} className={cn("card p-5 group hover:border-secondary/50 transition-colors flex flex-col h-full relative overflow-hidden cursor-pointer",
+                  showChecklist && selectedFilms.includes(item.id) && "border-primary bg-primary/5")}
                   onClick={() => showChecklist ? handleToggleSelect(item.id) : navigate('/films/' + item.id)}>
                   <div className="absolute top-4 right-4 flex items-center gap-1.5 z-10">
                     {showChecklist ? (
-                      <input type="checkbox" className="rounded border-gray-300 text-[#0E7B35] focus:ring-[#0E7B35] cursor-pointer"
+                      <input type="checkbox" className="rounded border-gray-300 text-primary focus:ring-primary cursor-pointer"
                         checked={selectedFilms.includes(item.id)} onChange={(e) => { e.stopPropagation(); handleToggleSelect(item.id); }} />
                     ) : (
                       <div className="opacity-0 group-hover:opacity-100 transition-opacity">
@@ -183,7 +183,7 @@ export default function Films() {
                       )}
                     </div>
                     <div className="flex-1 min-w-0">
-                      <h4 className="font-heading font-semibold text-gray-900 group-hover:text-[#0E7B35] transition-colors line-clamp-2 break-words">{item.title}</h4>
+                      <h4 className="font-heading font-semibold text-gray-900 group-hover:text-primary transition-colors line-clamp-2 break-words">{item.title}</h4>
                       <div className="flex items-center gap-2 mt-1 min-w-0">
                         <span className={cn("px-2 py-0.5 rounded text-[10px] font-semibold uppercase flex-shrink-0",
                           item.type === 'video' ? "bg-purple-50 text-purple-600" : item.type === 'audio' ? "bg-blue-50 text-blue-600" : "bg-green-50 text-green-600")}>

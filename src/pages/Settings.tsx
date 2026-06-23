@@ -1,10 +1,14 @@
 ﻿import React, { useState, useEffect } from 'react';
-import { Save, Server, CheckCircle2, FolderOpen, AlertCircle, Wifi, WifiOff, Volume2, VolumeX, Film, Music, Image as ImageIcon, Pencil, X } from 'lucide-react';
+import { useOutletContext } from 'react-router-dom';
+import { Save, Server, CheckCircle2, FolderOpen, AlertCircle, Wifi, WifiOff, Volume2, VolumeX, Film, Music, Image as ImageIcon, Pencil, X, Palette } from 'lucide-react';
 import { cn } from '../lib/utils';
 import { getSettings, saveSettings, addActivity, checkServerHealth, type ServerHealth } from '../lib/storage';
+import { THEME_PRESETS } from '../themes';
+import { applyTheme } from '../lib/theme';
 import type { AppSettings } from '../types';
 
 export default function Settings() {
+  const { setDirty } = useOutletContext<{ setDirty: (v: boolean) => void }>();
   const [settings, setSettings] = useState<AppSettings>(getSettings());
   const [isEditMode, setIsEditMode] = useState(false);
   const [draftSettings, setDraftSettings] = useState<AppSettings>(settings);
@@ -22,20 +26,25 @@ export default function Settings() {
   const handleEnterEdit = () => {
     setDraftSettings(settings);
     setIsEditMode(true);
+    setDirty(true);
   };
 
   const handleCancelEdit = () => {
     setDraftSettings(settings);
+    applyTheme(settings.accentTheme);
     setIsEditMode(false);
+    setDirty(false);
   };
 
   const handleSave = () => {
     setIsSaving(true);
     saveSettings(draftSettings);
     setSettings(draftSettings);
+    applyTheme(draftSettings.accentTheme);
     addActivity({ message: 'Settings saved', type: 'success' });
     setIsSaving(false);
     setIsEditMode(false);
+    setDirty(false);
     setToastMessage('Settings saved successfully');
     setTimeout(() => setToastMessage(null), 3000);
     checkHealth();
@@ -44,6 +53,15 @@ export default function Settings() {
   const handleValidatePath = async () => {
     await checkHealth();
   };
+
+  useEffect(() => {
+    if (!isEditMode) return;
+    const handler = (e: BeforeUnloadEvent) => {
+      e.preventDefault();
+    };
+    window.addEventListener('beforeunload', handler);
+    return () => window.removeEventListener('beforeunload', handler);
+  }, [isEditMode]);
 
   const current = isEditMode ? draftSettings : settings;
 
@@ -63,7 +81,7 @@ export default function Settings() {
               <X className="w-4 h-4" /> Cancel
             </button>
             <button onClick={handleSave} disabled={isSaving}
-              className="px-4 py-2 bg-[#0E7B35] text-white rounded-xl text-sm font-bold transition-all shadow-lg shadow-green-100 hover:bg-[#0A5E28] hover:shadow-xl active:scale-95 flex items-center justify-center gap-2 disabled:opacity-70 disabled:cursor-not-allowed cursor-pointer">
+              className="px-4 py-2 bg-primary text-white rounded-xl text-sm font-bold transition-all shadow-lg shadow-green-100 hover:bg-primary-dark hover:shadow-xl active:scale-95 flex items-center justify-center gap-2 disabled:opacity-70 disabled:cursor-not-allowed cursor-pointer">
               {isSaving ? <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" /> : <Save className="w-4 h-4" />}
               {isSaving ? 'Saving...' : 'Save Changes'}
             </button>
@@ -106,7 +124,7 @@ export default function Settings() {
         <div className="space-y-6">
           <div>
             <h3 className="text-lg font-heading font-semibold text-gray-900 mb-4 flex items-center gap-2">
-              <Server className="w-5 h-5 text-[#0E7B35]" /> Venue Settings
+              <Server className="w-5 h-5 text-primary" /> Venue Settings
             </h3>
             <div className="space-y-4">
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -117,7 +135,7 @@ export default function Settings() {
                     onChange={(e) => setDraftSettings({ ...draftSettings, venueName: e.target.value })}
                     className={cn("w-full rounded-lg px-3 py-2 text-sm transition-colors",
                       isEditMode
-                        ? "bg-white border border-gray-200 focus:outline-none focus:ring-1 focus:ring-[#0E7B35] focus:border-[#0E7B35]"
+                        ? "bg-white border border-gray-200 focus:outline-none focus:ring-1 focus:ring-primary focus:border-primary"
                         : "bg-gray-100 border border-gray-200 text-gray-600 cursor-not-allowed")} />
                 </div>
                 <div>
@@ -127,7 +145,7 @@ export default function Settings() {
                     onChange={(e) => setDraftSettings({ ...draftSettings, timezone: e.target.value })}
                     className={cn("w-full rounded-lg px-3 py-2 text-sm transition-colors",
                       isEditMode
-                        ? "bg-white border border-gray-200 focus:outline-none focus:ring-1 focus:ring-[#0E7B35] focus:border-[#0E7B35]"
+                        ? "bg-white border border-gray-200 focus:outline-none focus:ring-1 focus:ring-primary focus:border-primary"
                         : "bg-gray-100 border border-gray-200 text-gray-600 cursor-not-allowed")}>
                     <option value="UTC">UTC</option>
                     <option value="UTC+7">UTC+7 (WIB)</option>
@@ -151,7 +169,7 @@ export default function Settings() {
 
           <div>
             <h3 className="text-lg font-heading font-semibold text-gray-900 mb-4 flex items-center gap-2">
-              <FolderOpen className="w-5 h-5 text-[#0E7B35]" /> Content Library
+              <FolderOpen className="w-5 h-5 text-primary" /> Content Library
             </h3>
             <div className="space-y-4">
               <div>
@@ -163,7 +181,7 @@ export default function Settings() {
                     placeholder="D:\JEMIMA"
                     className={cn("flex-1 rounded-lg px-3 py-2 text-sm font-mono transition-colors",
                       isEditMode
-                        ? "bg-white border border-gray-200 focus:outline-none focus:ring-1 focus:ring-[#0E7B35] focus:border-[#0E7B35]"
+                        ? "bg-white border border-gray-200 focus:outline-none focus:ring-1 focus:ring-primary focus:border-primary"
                         : "bg-gray-100 border border-gray-200 text-gray-600 cursor-not-allowed")} />
                   <button type="button" onClick={handleValidatePath}
                     className="px-4 py-2 bg-white border border-gray-200 text-gray-700 hover:bg-gray-50 rounded-lg text-sm font-medium transition-colors flex items-center gap-2">
@@ -230,12 +248,51 @@ export default function Settings() {
               })}
             </div>
           </div>
+
+          <div className="h-px bg-gray-100 my-6"></div>
+
+          <div>
+            <h3 className="text-lg font-heading font-semibold text-gray-900 mb-1 flex items-center gap-2">
+              <Palette className="w-5 h-5 text-primary" /> Appearance
+            </h3>
+            <p className="text-xs text-gray-500 mb-4">Choose an accent color for the dashboard.</p>
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+              {THEME_PRESETS.map((preset) => {
+                const isSelected = current.accentTheme === preset.id;
+                return (
+                  <button
+                    key={preset.id}
+                    type="button"
+                    disabled={!isEditMode}
+                    onClick={() => {
+                      setDraftSettings({ ...draftSettings, accentTheme: preset.id });
+                      applyTheme(preset.id);
+                    }}
+                    className={cn(
+                      "flex flex-col items-center gap-2 p-3 rounded-xl border-2 transition-all",
+                      !isEditMode && "cursor-not-allowed opacity-50",
+                      isSelected
+                        ? "border-primary bg-primary/5"
+                        : "border-gray-200 hover:border-gray-300 bg-white"
+                    )}
+                  >
+                    <div className="flex items-center gap-1.5">
+                      <div className="w-5 h-5 rounded-full" style={{ backgroundColor: preset.colors.primary }} />
+                      <div className="w-5 h-5 rounded-full" style={{ backgroundColor: preset.colors.secondary }} />
+                    </div>
+                    <span className="text-xs font-medium text-gray-700">{preset.name}</span>
+                    {isSelected && <div className="w-1.5 h-1.5 rounded-full bg-primary" />}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
         </div>
       </div>
 
       {toastMessage && (
         <div className="fixed bottom-4 left-1/2 -translate-x-1/2 z-50 bg-gray-900 text-white px-4 py-2 rounded-lg shadow-lg flex items-center gap-2 animate-in fade-in slide-in-from-bottom-2">
-          <CheckCircle2 className="w-4 h-4 text-[#B9EA38]" />
+          <CheckCircle2 className="w-4 h-4 text-secondary" />
           <span className="text-sm font-medium">{toastMessage}</span>
         </div>
       )}

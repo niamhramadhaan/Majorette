@@ -1,6 +1,6 @@
 ﻿import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Play, Pause, Plus, Calendar, ExternalLink, Music, Image as ImageIcon, Film, Clock, SkipBack, SkipForward, CheckCircle, RotateCcw, X, CheckCircle2 } from 'lucide-react';
+import { Play, Pause, Plus, Calendar, ExternalLink, Music, Image as ImageIcon, Film, Clock, SkipBack, SkipForward, CheckCircle, RotateCcw, X, CheckCircle2, History, Keyboard } from 'lucide-react';
 import { cn } from '../lib/utils';
 import { createPortal } from 'react-dom';
 import { STORAGE_KEYS, getActivities, getThumbnailUrl, getActiveSchedule, getUpcomingSchedule, getScheduleStartTime, emitSkipSignal, emitResumeSignal, emitDoneSignal, getPlayerState, getScheduleElapsed, getCurrentItemIndex, generateId, getTimestamp, getScheduleTotalDuration, resolveFilePath } from '../lib/storage';
@@ -234,7 +234,7 @@ export default function Dashboard() {
   return (
     <div className="space-y-6">
       {toastMessage && (
-        <div className="bg-[#B9EA38]/20 text-[#0A5E28] px-4 py-3 rounded-lg border border-[#B9EA38]/50 flex items-center gap-2 font-medium animate-in fade-in slide-in-from-top-2 text-sm">
+        <div className="bg-secondary/20 text-primary-dark px-4 py-3 rounded-lg border border-secondary/50 flex items-center gap-2 font-medium animate-in fade-in slide-in-from-top-2 text-sm">
           <CheckCircle2 className="w-4 h-4" />
           {toastMessage}
         </div>
@@ -247,7 +247,7 @@ export default function Dashboard() {
             <p className="text-sm text-gray-500 mt-1">{formatDate(currentTime)} &middot; {formatTime(currentTime)}</p>
           </div>
         </div>
-        <button onClick={() => window.open('/player', '_blank')} className="flex items-center gap-2 px-4 py-2 bg-[#0E7B35] hover:bg-[#0A5E28] text-white rounded-lg text-sm font-medium transition-colors shadow-sm">
+        <button onClick={() => window.open('/player', '_blank')} className="flex items-center gap-2 px-4 py-2 bg-primary hover:bg-primary-dark text-white rounded-lg text-sm font-medium transition-colors shadow-sm">
           <ExternalLink className="w-4 h-4" /> Open Player
         </button>
       </div>
@@ -256,15 +256,15 @@ export default function Dashboard() {
         <div className="lg:col-span-2 space-y-6">
           <div className="card p-6">
             <div className="flex items-center justify-between mb-4">
-              <h2 className="font-heading font-semibold text-gray-800 flex items-center gap-2"><Play className="w-5 h-5 text-[#0E7B35]" /> Now Playing</h2>
-              {activeSchedule && <span className="px-3 py-1 bg-green-50 text-green-700 text-xs font-medium rounded-full border border-green-200">{activeSchedule.name}</span>}
+              <h2 className="font-heading font-semibold text-gray-800 flex items-center gap-2"><Play className="w-5 h-5 text-primary" /> Now Playing</h2>
+              {activeSchedule && <span className="px-3 py-1 bg-primary/10 text-primary-dark text-xs font-medium rounded-full border border-primary/20">{activeSchedule.name}</span>}
             </div>
             {activeSchedule?.status === 'done' ? (
               <div className="text-center py-8">
-                <CheckCircle className="w-12 h-12 text-[#0E7B35] mx-auto mb-3" />
+                <CheckCircle className="w-12 h-12 text-primary mx-auto mb-3" />
                 <p className="text-gray-900 font-semibold text-lg mb-1">{activeSchedule.name}</p>
                 <p className="text-gray-400 mb-4">Schedule Completed</p>
-                <button onClick={() => openRecreateFromDone(activeSchedule)} className="inline-flex items-center gap-2 px-4 py-2 bg-[#0E7B35] hover:bg-[#0A5E28] text-white rounded-lg text-sm font-medium transition-colors">
+                <button onClick={() => openRecreateFromDone(activeSchedule)} className="inline-flex items-center gap-2 px-4 py-2 bg-primary hover:bg-primary-dark text-white rounded-lg text-sm font-medium transition-colors">
                   <RotateCcw className="w-4 h-4" /> Play Again
                 </button>
               </div>
@@ -281,11 +281,11 @@ export default function Dashboard() {
                   <h3 className="text-xl font-semibold text-gray-900">{currentItem.title}</h3>
                   <p className="text-sm text-gray-500 mt-1 capitalize">{currentItem.type} - {currentItem.duration}s - {currentItem.fileName}</p>
                   <div className="mt-3 flex items-center gap-3">
-                    <div className="flex-1 bg-gray-100 rounded-full h-2 overflow-hidden"><div className={cn("bg-[#0E7B35] h-full rounded-full transition-all duration-500", playerIsPlaying && "animate-pulse-bar")} style={{ width: Math.min(currentItemProgress, 100) + '%' }} /></div>
-                    <button onClick={() => emitSkipSignal('prev')} className="p-1.5 text-gray-400 hover:text-[#0E7B35] transition-all active:scale-90" title="Previous">
+                    <div className="flex-1 bg-gray-100 rounded-full h-2 overflow-hidden"><div className={cn("bg-primary h-full rounded-full transition-all duration-500", playerIsPlaying && "animate-pulse-bar")} style={{ width: Math.min(currentItemProgress, 100) + '%' }} /></div>
+                    <button onClick={() => emitSkipSignal('prev')} className="p-1.5 text-gray-400 hover:text-primary transition-all active:scale-90" title="Previous">
                       <SkipBack className="w-4 h-4" />
                     </button>
-                    <button onClick={() => emitSkipSignal('next')} className="p-1.5 text-gray-400 hover:text-[#0E7B35] transition-all active:scale-90" title="Next">
+                    <button onClick={() => emitSkipSignal('next')} className="p-1.5 text-gray-400 hover:text-primary transition-all active:scale-90" title="Next">
                       <SkipForward className="w-4 h-4" />
                     </button>
                     {playerIsPlaying ? (
@@ -293,11 +293,11 @@ export default function Dashboard() {
                         <Pause className="w-4 h-4" />
                       </button>
                     ) : (
-                      <button onClick={() => emitResumeSignal()} className="p-1.5 text-gray-400 hover:text-[#0E7B35] transition-all active:scale-90" title="Resume">
+                      <button onClick={() => emitResumeSignal()} className="p-1.5 text-gray-400 hover:text-primary transition-all active:scale-90" title="Resume">
                         <Play className="w-4 h-4" />
                       </button>
                     )}
-                    <button onClick={() => setDoneModalSchedule(activeSchedule)} className="p-1.5 text-gray-400 hover:text-[#0E7B35] transition-all active:scale-90" title="Mark Done">
+                    <button onClick={() => setDoneModalSchedule(activeSchedule)} className="p-1.5 text-gray-400 hover:text-primary transition-all active:scale-90" title="Mark Done">
                       <CheckCircle className="w-4 h-4" />
                     </button>
                   </div>
@@ -317,23 +317,23 @@ export default function Dashboard() {
                       )}
                     </div>
                     <div className="flex-1 min-w-0">
-                      <p className="text-[11px] text-[#0E7B35] font-semibold uppercase tracking-wide mb-0.5">Starting Soon</p>
+                      <p className="text-[11px] text-primary font-semibold uppercase tracking-wide mb-0.5">Starting Soon</p>
                       <p className="font-heading font-semibold text-gray-900 truncate">{upcomingSchedule.name}</p>
                       <p className="text-xs text-gray-500 mt-0.5">{upcomingFirstItem?.title || 'Unknown content'}</p>
                     </div>
                     <div className="text-right flex-shrink-0">
                       {upcomingCountdownSec <= 20 ? (
-                        <p className="text-lg font-mono font-bold text-[#0E7B35]">
+                        <p className="text-lg font-mono font-bold text-primary">
                           {formatCountdown(upcomingCountdownSec).h && <span>{formatCountdown(upcomingCountdownSec).h}<span className="text-xs opacity-60">h</span></span>}
                           {formatCountdown(upcomingCountdownSec).m && <span>{formatCountdown(upcomingCountdownSec).m}<span className="text-xs opacity-60">m</span></span>}
                           <span className="animate-seconds-pulse">{formatCountdown(upcomingCountdownSec).s}</span><span className="text-xs opacity-60">s</span>
                         </p>
                       ) : (
-                        <p className="text-lg font-mono font-bold text-[#0E7B35]">{formatCountdown(upcomingCountdownSec).display}</p>
+                        <p className="text-lg font-mono font-bold text-primary">{formatCountdown(upcomingCountdownSec).display}</p>
                       )}
                     </div>
                   </div>
-                  <button onClick={() => window.open('/player', '_blank')} className="mt-4 w-full flex items-center justify-center gap-2 bg-[#0E7B35] hover:bg-[#0A5E28] text-white px-4 py-2.5 rounded-lg text-sm font-medium transition-colors">
+                  <button onClick={() => window.open('/player', '_blank')} className="mt-4 w-full flex items-center justify-center gap-2 bg-primary hover:bg-primary-dark text-white px-4 py-2.5 rounded-lg text-sm font-medium transition-colors">
                     <ExternalLink className="w-4 h-4" /> Open Player
                   </button>
                 </div>
@@ -341,7 +341,7 @@ export default function Dashboard() {
                 <div className="text-center py-8">
                   <Clock className="w-12 h-12 text-gray-300 mx-auto mb-3" />
                   <p className="text-gray-400 mb-1">No schedule playing right now</p>
-                  <p className="text-[#0E7B35] font-medium">{upcomingSchedule.name}</p>
+                  <p className="text-primary font-medium">{upcomingSchedule.name}</p>
                   <p className="text-xs text-gray-500 mt-1">
                     Starts {getUpcomingStart() ? formatTime(getUpcomingStart()!) : 'soon'}
                   </p>
@@ -350,33 +350,39 @@ export default function Dashboard() {
             ) : (
               <div className="text-center py-8">
                 <Play className="w-12 h-12 text-gray-300 mx-auto mb-3" /><p className="text-gray-500">No content playing</p>
-                <button onClick={() => navigate('/schedule')} className="mt-3 text-sm text-[#0E7B35] hover:text-[#0A5E28] font-medium">Create a Schedule</button>
+                <button onClick={() => navigate('/schedule')} className="mt-3 text-sm text-primary hover:text-primary-dark font-medium">Create a Schedule</button>
               </div>
             )}
           </div>
 
           {(activeSchedule || lastPlayedSchedules.length > 0) && (
-            <div className="card p-4">
-              <h3 className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">Last Play</h3>
+            <div className="card p-6">
+              <h3 className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3 flex items-center gap-2">
+                <History className="w-4 h-4" /> Last Play
+              </h3>
               {activeSchedule ? (
-                <div className="flex items-center gap-3">
-                  <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse flex-shrink-0" />
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium text-gray-900 truncate">{activeSchedule.name}</p>
-                    <p className="text-xs text-gray-500">
-                      Running for {formatElapsed(elapsedSec)} &middot; {activeSchedule.items.length} items &middot; {activeSchedule.mode === 'loop' ? 'Loop' : 'Once'}
-                    </p>
+                <div className="bg-primary/5 rounded-lg p-3">
+                  <div className="flex items-center gap-3">
+                    <div className="w-2.5 h-2.5 rounded-full bg-primary animate-pulse flex-shrink-0" />
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-semibold text-gray-900 truncate">{activeSchedule.name}</p>
+                      <p className="text-xs text-gray-500 mt-0.5">
+                        Running for {formatElapsed(elapsedSec)} <span className="text-gray-300 mx-0.5">&middot;</span> {activeSchedule.items.length} items <span className="text-gray-300 mx-0.5">&middot;</span> {activeSchedule.mode === 'loop' ? 'Loop' : 'Once'}
+                      </p>
+                    </div>
+                    <span className="px-2 py-0.5 bg-primary/10 text-primary text-[10px] font-semibold rounded-full uppercase tracking-wide">Active</span>
                   </div>
                 </div>
               ) : lastPlayedSchedules[0] ? (
                 <div className="flex items-center gap-3">
-                  <div className="w-2 h-2 rounded-full bg-gray-400 flex-shrink-0" />
+                  <div className="w-2.5 h-2.5 rounded-full bg-gray-300 flex-shrink-0" />
                   <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium text-gray-900 truncate">{lastPlayedSchedules[0].name}</p>
-                    <p className="text-xs text-gray-500">
-                      Ran for {formatElapsed(getScheduleTotalDuration(lastPlayedSchedules[0], content))} &middot; Ended {getRelativeTime(lastPlayedSchedules[0].updatedAt)}
+                    <p className="text-sm font-semibold text-gray-900 truncate">{lastPlayedSchedules[0].name}</p>
+                    <p className="text-xs text-gray-500 mt-0.5">
+                      Ran for {formatElapsed(getScheduleTotalDuration(lastPlayedSchedules[0], content))} <span className="text-gray-300 mx-0.5">&middot;</span> Ended {getRelativeTime(lastPlayedSchedules[0].updatedAt)}
                     </p>
                   </div>
+                  <span className="px-2 py-0.5 bg-gray-100 text-gray-500 text-[10px] font-semibold rounded-full uppercase tracking-wide">Done</span>
                 </div>
               ) : null}
             </div>
@@ -440,15 +446,15 @@ export default function Dashboard() {
             <h2 className="font-heading font-semibold text-gray-800 mb-4">Quick Actions</h2>
             <div className="space-y-3">
               <button onClick={() => navigate('/films/ingest')} className="w-full flex items-center gap-3 p-4 bg-gray-50 hover:bg-gray-100 rounded-xl transition-colors text-left">
-                <div className="w-10 h-10 bg-[#0E7B35]/10 rounded-lg flex items-center justify-center"><Plus className="w-5 h-5 text-[#0E7B35]" /></div>
+                <div className="w-10 h-10 bg-primary/10 rounded-lg flex items-center justify-center"><Plus className="w-5 h-5 text-primary" /></div>
                 <div><p className="text-sm font-medium text-gray-700">Add Content</p><p className="text-xs text-gray-500">Select media files</p></div>
               </button>
               <button onClick={() => navigate('/schedule')} className="w-full flex items-center gap-3 p-4 bg-gray-50 hover:bg-gray-100 rounded-xl transition-colors text-left">
-                <div className="w-10 h-10 bg-[#0E7B35]/10 rounded-lg flex items-center justify-center"><Calendar className="w-5 h-5 text-[#0E7B35]" /></div>
+                <div className="w-10 h-10 bg-primary/10 rounded-lg flex items-center justify-center"><Calendar className="w-5 h-5 text-primary" /></div>
                 <div><p className="text-sm font-medium text-gray-700">Edit Schedule</p><p className="text-xs text-gray-500">Manage your playlists</p></div>
               </button>
               <button onClick={() => window.open('/player', '_blank')} className="w-full flex items-center gap-3 p-4 bg-gray-50 hover:bg-gray-100 rounded-xl transition-colors text-left">
-                <div className="w-10 h-10 bg-[#0E7B35]/10 rounded-lg flex items-center justify-center"><ExternalLink className="w-5 h-5 text-[#0E7B35]" /></div>
+                <div className="w-10 h-10 bg-primary/10 rounded-lg flex items-center justify-center"><ExternalLink className="w-5 h-5 text-primary" /></div>
                 <div><p className="text-sm font-medium text-gray-700">Open Player</p><p className="text-xs text-gray-500">Launch on your screen</p></div>
               </button>
             </div>
@@ -460,13 +466,34 @@ export default function Dashboard() {
               <div className="flex items-center justify-between"><span className="text-sm text-gray-500">Content Items</span><span className="text-sm font-semibold text-gray-700">{content.length}</span></div>
               <div className="flex items-center justify-between"><span className="text-sm text-gray-500">Schedules</span><span className="text-sm font-semibold text-gray-700">{schedules.length}</span></div>
               {activeSchedule ? (
-                <div className="flex items-center justify-between"><span className="text-sm text-gray-500">Now Playing</span><span className="text-sm font-semibold text-[#0E7B35]">{activeSchedule.name}</span></div>
+                <div className="flex items-center justify-between"><span className="text-sm text-gray-500">Now Playing</span><span className="text-sm font-semibold text-primary">{activeSchedule.name}</span></div>
               ) : upcomingSchedule ? (
                 <div className="flex items-center justify-between"><span className="text-sm text-gray-500">Next Schedule</span><span className="text-sm font-semibold text-gray-700">{upcomingSchedule.name}</span></div>
               ) : (
                 <div className="flex items-center justify-between"><span className="text-sm text-gray-500">Now Playing</span><span className="text-sm font-semibold text-gray-400">None</span></div>
               )}
             </div>
+          </div>
+
+          <div className="card p-6">
+            <h2 className="font-heading font-semibold text-gray-800 mb-4 flex items-center gap-2">
+              <Keyboard className="w-5 h-5 text-gray-400" /> Player Shortcuts
+            </h2>
+            <div className="space-y-2.5">
+              {[
+                { key: 'Space', desc: 'Play / Pause' },
+                { key: 'F', desc: 'Fullscreen' },
+                { key: 'M', desc: 'Mute / Unmute' },
+                { key: 'L', desc: 'Lock controls' },
+                { key: '?', desc: 'Show shortcuts' },
+              ].map(({ key, desc }) => (
+                <div key={key} className="flex items-center justify-between">
+                  <span className="text-xs text-gray-500">{desc}</span>
+                  <kbd className="px-2 py-0.5 bg-gray-100 border border-gray-200 rounded text-[11px] text-gray-700 font-mono font-medium min-w-[28px] text-center">{key}</kbd>
+                </div>
+              ))}
+            </div>
+            <p className="text-[11px] text-gray-400 mt-3 pt-3 border-t border-gray-100">These shortcuts work on the <a href="/player" className="text-primary hover:underline">Player</a> page.</p>
           </div>
 
           {lastPlayedSchedules.length > 0 && (
@@ -485,7 +512,7 @@ export default function Dashboard() {
                   </div>
                 ))}
               </div>
-              <button onClick={() => navigate('/schedule')} className="mt-4 text-sm text-[#0E7B35] hover:text-[#0A5E28] font-medium">
+              <button onClick={() => navigate('/schedule')} className="mt-4 text-sm text-primary hover:text-primary-dark font-medium">
                 View All →
               </button>
             </div>
@@ -511,7 +538,7 @@ export default function Dashboard() {
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-gray-900/50 animate-in fade-in backdrop-blur-sm">
           <div className="bg-white rounded-xl shadow-2xl w-full max-w-sm overflow-hidden flex flex-col animate-in slide-in-from-bottom-4">
             <div className="p-6 text-center space-y-3">
-              <div className="w-12 h-12 rounded-full bg-[#0E7B35]/10 text-[#0E7B35] flex items-center justify-center mx-auto">
+              <div className="w-12 h-12 rounded-full bg-primary/10 text-primary flex items-center justify-center mx-auto">
                 <CheckCircle className="w-6 h-6" />
               </div>
               <div>
@@ -523,7 +550,7 @@ export default function Dashboard() {
             </div>
             <div className="p-4 border-t border-gray-100 bg-gray-50 flex justify-end gap-3">
               <button onClick={() => setDoneModalSchedule(null)} className="px-4 py-2 text-sm font-medium text-gray-600 hover:bg-gray-200 bg-white border border-gray-200 rounded-lg transition-colors">Cancel</button>
-              <button onClick={() => { setSchedules(emitDoneSignal(schedules, doneModalSchedule.id)); setDoneModalSchedule(null); showToast('Schedule marked as done'); }} className="px-5 py-2 text-sm font-medium text-white bg-[#0E7B35] hover:bg-[#0A5E28] rounded-lg transition-colors shadow-sm">
+              <button onClick={() => { setSchedules(emitDoneSignal(schedules, doneModalSchedule.id)); setDoneModalSchedule(null); showToast('Schedule marked as done'); }} className="px-5 py-2 text-sm font-medium text-white bg-primary hover:bg-primary-dark rounded-lg transition-colors shadow-sm">
                 Mark Done
               </button>
             </div>
@@ -538,7 +565,7 @@ export default function Dashboard() {
             <div className="p-6 space-y-4">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-full bg-[#0E7B35]/10 text-[#0E7B35] flex items-center justify-center">
+                  <div className="w-10 h-10 rounded-full bg-primary/10 text-primary flex items-center justify-center">
                     <RotateCcw className="w-5 h-5" />
                   </div>
                   <div>
@@ -574,7 +601,7 @@ export default function Dashboard() {
                     onChange={(e) => {
                       try { setRecreateStartTime(new Date(e.target.value).toISOString()); } catch {}
                     }}
-                    className="w-full px-3 py-2 bg-white border border-gray-200 rounded-lg text-sm focus:outline-none focus:border-[#0E7B35] focus:ring-1 focus:ring-[#0E7B35]"
+                    className="w-full px-3 py-2 bg-white border border-gray-200 rounded-lg text-sm focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary"
                   />
                 </div>
                 <div>
@@ -582,7 +609,7 @@ export default function Dashboard() {
                   <select
                     value={recreateMode}
                     onChange={(e) => setRecreateMode(e.target.value as 'loop' | 'once')}
-                    className="w-full px-3 py-2 bg-white border border-gray-200 rounded-lg text-sm focus:outline-none focus:border-[#0E7B35] focus:ring-1 focus:ring-[#0E7B35]"
+                    className="w-full px-3 py-2 bg-white border border-gray-200 rounded-lg text-sm focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary"
                   >
                     <option value="loop">Loop</option>
                     <option value="once">Play Once</option>
@@ -592,7 +619,7 @@ export default function Dashboard() {
             </div>
             <div className="p-4 border-t border-gray-100 bg-gray-50 flex justify-end gap-3">
               <button onClick={() => setRecreateFromSchedule(null)} className="px-4 py-2 text-sm font-medium text-gray-600 hover:bg-gray-200 bg-white border border-gray-200 rounded-lg transition-colors">Cancel</button>
-              <button onClick={handleRecreate} className="px-5 py-2 text-sm font-medium text-white bg-[#0E7B35] hover:bg-[#0A5E28] rounded-lg transition-colors shadow-sm">
+              <button onClick={handleRecreate} className="px-5 py-2 text-sm font-medium text-white bg-primary hover:bg-primary-dark rounded-lg transition-colors shadow-sm">
                 Create Schedule
               </button>
             </div>

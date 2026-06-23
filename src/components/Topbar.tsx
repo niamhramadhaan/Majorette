@@ -15,7 +15,7 @@ interface SearchResult {
   thumbnail?: string;
 }
 
-export default function Topbar({ setSidebarOpen }: { setSidebarOpen: (o: boolean) => void }) {
+export default function Topbar({ setSidebarOpen, requestNavigation, setDirty }: { setSidebarOpen: (o: boolean) => void; requestNavigation: (path: string, action?: () => void) => void; setDirty: (v: boolean) => void }) {
   const location = useLocation();
   const navigate = useNavigate();
   const [isProfileOpen, setIsProfileOpen] = useState(false);
@@ -25,7 +25,6 @@ export default function Topbar({ setSidebarOpen }: { setSidebarOpen: (o: boolean
   const [isSearchOpen, setIsSearchOpen] = useState(false);
   const [highlightIndex, setHighlightIndex] = useState(-1);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
-  const [isLoggingOut, setIsLoggingOut] = useState(false);
   const [userName, setUserName] = useState(getUserName());
   const [editName, setEditName] = useState(userName);
   const profileRef = useRef<HTMLDivElement>(null);
@@ -88,7 +87,7 @@ export default function Topbar({ setSidebarOpen }: { setSidebarOpen: (o: boolean
               title: s.name,
               category: 'schedule' as const,
               subtitle: s.status === 'done' ? 'Done' : s.mode === 'loop' ? 'Looping' : 'Once',
-              icon: <Calendar className="w-4 h-4 text-[#0E7B35]" />,
+              icon: <Calendar className="w-4 h-4 text-primary" />,
             }));
           results.push(...scheduleMatches);
         }
@@ -153,11 +152,19 @@ export default function Topbar({ setSidebarOpen }: { setSidebarOpen: (o: boolean
     return '';
   };
 
-  const handleLogout = () => {
-    setIsLoggingOut(true);
+  const performLogout = () => {
     clearUserName();
-    localStorage.clear();
-    navigate('/login', { replace: true });
+    Object.values(STORAGE_KEYS).forEach(key => {
+      if (key !== STORAGE_KEYS.SETTINGS && key !== STORAGE_KEYS.VENUES) {
+        localStorage.removeItem(key);
+      }
+    });
+    setDirty(false);
+  };
+
+  const handleLogoutClick = () => {
+    setIsProfileOpen(false);
+    requestNavigation('/login', performLogout);
   };
 
   const handleSaveAccount = () => {
@@ -172,7 +179,7 @@ export default function Topbar({ setSidebarOpen }: { setSidebarOpen: (o: boolean
   };
 
   return (
-    <header className="sticky top-0 z-20 flex items-center justify-between h-20 px-6 lg:px-10 bg-white/70 backdrop-blur-md border-b border-[#0E7B35]/5 relative">
+    <header className="sticky top-0 z-20 flex items-center justify-between h-20 px-6 lg:px-10 bg-white/70 backdrop-blur-md border-b border-primary/5 relative">
       {toastMessage && (
         <div className="fixed top-24 right-10 bg-indigo-50 text-indigo-700 px-5 py-3 rounded-xl shadow-xl flex items-center gap-3 animate-in fade-in slide-in-from-top-4 z-50">
           <CheckCircle2 className="w-5 h-5 text-indigo-500" />
@@ -212,7 +219,7 @@ export default function Topbar({ setSidebarOpen }: { setSidebarOpen: (o: boolean
             onChange={(e) => setSearchValue(e.target.value)}
             onKeyDown={handleSearchKeyDown}
             onFocus={() => { if (searchResults.length > 0) setIsSearchOpen(true); }}
-            className="pl-9 pr-4 py-2 bg-white border border-gray-200 rounded-full text-sm focus:outline-none focus:border-[#0E7B35] focus:ring-1 focus:ring-[#0E7B35] w-64 transition-all"
+            className="pl-9 pr-4 py-2 bg-white border border-gray-200 rounded-full text-sm focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary w-64 transition-all"
           />
           {isSearchOpen && searchResults.length > 0 && (
             <div className="absolute top-full left-0 right-0 mt-2 bg-white rounded-xl shadow-xl border border-gray-100 py-2 max-h-80 overflow-y-auto z-50">
@@ -230,7 +237,7 @@ export default function Topbar({ setSidebarOpen }: { setSidebarOpen: (o: boolean
                             <button key={result.id}
                               onClick={() => handleSearchSelect(result)}
                               className={cn("w-full flex items-center gap-3 px-4 py-2 text-left transition-colors cursor-pointer",
-                                highlightIndex === globalIndex ? "bg-[#0E7B35]/5" : "hover:bg-gray-50")}>
+                                highlightIndex === globalIndex ? "bg-primary/5" : "hover:bg-gray-50")}>
                               {result.thumbnail ? (
                                 <img src={result.thumbnail} alt="" className="w-8 h-6 rounded object-cover flex-shrink-0" />
                               ) : (
@@ -257,8 +264,8 @@ export default function Topbar({ setSidebarOpen }: { setSidebarOpen: (o: boolean
                             <button key={result.id}
                               onClick={() => handleSearchSelect(result)}
                               className={cn("w-full flex items-center gap-3 px-4 py-2 text-left transition-colors cursor-pointer",
-                                highlightIndex === globalIndex ? "bg-[#0E7B35]/5" : "hover:bg-gray-50")}>
-                              <div className="w-8 h-6 bg-[#0E7B35]/10 rounded flex items-center justify-center flex-shrink-0">{result.icon}</div>
+                                highlightIndex === globalIndex ? "bg-primary/5" : "hover:bg-gray-50")}>
+                              <div className="w-8 h-6 bg-primary/10 rounded flex items-center justify-center flex-shrink-0">{result.icon}</div>
                               <div className="flex-1 min-w-0">
                                 <p className="text-sm font-medium text-gray-800 truncate">{result.title}</p>
                               </div>
@@ -292,7 +299,7 @@ export default function Topbar({ setSidebarOpen }: { setSidebarOpen: (o: boolean
             <img 
               src="/logo.png" 
               alt="JEMIMA" 
-              className="w-10 h-10 rounded-full bg-[#B9EA38]/20 border border-[#B9EA38]/50 object-cover"
+              className="w-10 h-10 rounded-full bg-secondary/20 border border-secondary/50 object-cover"
             />
             <ChevronDown className="w-4 h-4 text-gray-400 hidden sm:block" />
           </button>
@@ -311,16 +318,11 @@ export default function Topbar({ setSidebarOpen }: { setSidebarOpen: (o: boolean
                </button>
                <div className="border-t border-gray-100 my-1"></div>
                <button 
-                 onClick={handleLogout}
-                 disabled={isLoggingOut}
-                 className="w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-red-50 flex items-center gap-2 transition-colors cursor-pointer disabled:opacity-70 disabled:cursor-not-allowed"
+                 onClick={handleLogoutClick}
+                 className="w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-red-50 flex items-center gap-2 transition-colors cursor-pointer"
                >
-                 {isLoggingOut ? (
-                   <div className="w-4 h-4 border-2 border-red-600 border-t-transparent rounded-full animate-spin" />
-                 ) : (
-                   <LogOut className="w-4 h-4" />
-                 )}
-                 {isLoggingOut ? 'Logging out...' : 'Log Out'}
+                 <LogOut className="w-4 h-4" />
+                 Log Out
                </button>
             </div>
           )}
@@ -342,7 +344,7 @@ export default function Topbar({ setSidebarOpen }: { setSidebarOpen: (o: boolean
             <div className="p-6 space-y-5 overflow-y-auto max-h-[70vh]">
                <div className="flex items-center gap-4">
                  <div className="relative">
-                   <img src="/logo.png" alt="JEMIMA" className="w-16 h-16 rounded-full bg-[#B9EA38]/20 border border-[#B9EA38]/50 object-cover" />
+                    <img src="/logo.png" alt="JEMIMA" className="w-16 h-16 rounded-full bg-secondary/20 border border-secondary/50 object-cover" />
                  </div>
                  <div>
                    <h4 className="font-medium text-gray-900">{userName || 'User'}</h4>
@@ -357,7 +359,7 @@ export default function Topbar({ setSidebarOpen }: { setSidebarOpen: (o: boolean
                      value={editName}
                      onChange={(e) => setEditName(e.target.value)}
                      placeholder="What should we call you?" 
-                     className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-lg text-sm text-gray-800 focus:outline-none focus:ring-1 focus:ring-[#0E7B35]" 
+                      className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-lg text-sm text-gray-800 focus:outline-none focus:ring-1 focus:ring-primary" 
                    />
                  </div>
                </div>
@@ -366,7 +368,7 @@ export default function Topbar({ setSidebarOpen }: { setSidebarOpen: (o: boolean
                <button 
                  onClick={handleSaveAccount}
                  disabled={editName.trim().length < 2}
-                 className="px-4 py-2 bg-[#0E7B35] hover:bg-[#0A5E28] disabled:opacity-50 disabled:cursor-not-allowed text-white rounded-lg text-sm font-medium transition-colors cursor-pointer shadow-sm"
+                  className="px-4 py-2 bg-primary hover:bg-primary-dark disabled:opacity-50 disabled:cursor-not-allowed text-white rounded-lg text-sm font-medium transition-colors cursor-pointer shadow-sm"
                >
                  Save Changes
                </button>

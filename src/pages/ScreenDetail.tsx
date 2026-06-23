@@ -82,7 +82,7 @@ export default function ScreenDetail() {
   if (isLoading) {
     return (
       <div className="flex-1 flex items-center justify-center h-full">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#0E7B35]"></div>
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
       </div>
     );
   }
@@ -94,7 +94,7 @@ export default function ScreenDetail() {
           <Monitor className="w-8 h-8" />
         </div>
         <h2 className="text-xl font-semibold text-gray-900">Screen not found</h2>
-        <button onClick={() => navigate('/locations')} className="text-[#0E7B35] font-medium hover:underline">Return to Locations</button>
+        <button onClick={() => navigate('/locations')} className="text-primary font-medium hover:underline">Return to Locations</button>
       </div>
     );
   }
@@ -110,9 +110,9 @@ export default function ScreenDetail() {
             {isEditing ? (
               <div className="flex items-center gap-2">
                 <input type="text" value={editName} onChange={(e) => setEditName(e.target.value)}
-                  className="px-3 py-1 border border-gray-200 rounded-lg text-lg font-heading font-bold focus:outline-none focus:ring-1 focus:border-[#0E7B35] focus:ring-[#0E7B35]"
+                  className="px-3 py-1 border border-gray-200 rounded-lg text-lg font-heading font-bold focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary"
                   onKeyDown={(e) => e.key === 'Enter' && handleSave()} autoFocus />
-                <button onClick={handleSave} className="p-1.5 text-[#0E7B35] hover:bg-[#0E7B35]/10 rounded-lg transition-colors"><Save className="w-4 h-4" /></button>
+                <button onClick={handleSave} className="p-1.5 text-primary hover:bg-primary/10 rounded-lg transition-colors"><Save className="w-4 h-4" /></button>
                 <button onClick={() => { setIsEditing(false); setEditName(screen.name); }} className="p-1.5 text-gray-400 hover:bg-gray-100 rounded-lg transition-colors"><X className="w-4 h-4" /></button>
               </div>
             ) : (
@@ -126,7 +126,7 @@ export default function ScreenDetail() {
         </div>
         <div className="flex items-center gap-2">
           <button onClick={() => window.open(screen.playerUrl, '_blank')}
-            className="flex items-center gap-2 bg-[#0E7B35] hover:bg-[#0A5E28] text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors">
+            className="flex items-center gap-2 bg-primary hover:bg-primary-dark text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors">
             <ExternalLink className="w-4 h-4" /> Open Player
           </button>
           <button onClick={() => setConfirmDelete(true)}

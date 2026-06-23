@@ -8,8 +8,10 @@
   --color-secondary: #B9EA38;
   --color-accent: #FAEF06;
   --color-muted-teal: #559D71;
-  --color-bg-light: #F9FCFA; /* very soft pastel green/gray */
-  
+  --color-bg-light: #F9FCFA;
+  --gradient-from: #95D142;
+  --gradient-to: #2F8836;
+
   --font-sans: "Poppins", ui-sans-serif, system-ui, sans-serif;
   --font-heading: "Montserrat", ui-sans-serif, system-ui, sans-serif;
 }

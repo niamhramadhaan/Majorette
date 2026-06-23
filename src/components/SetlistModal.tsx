@@ -86,7 +86,7 @@ export function SetlistModal({
               type="text" 
               value={name} 
               onChange={(e) => setName(e.target.value)}
-              className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-lg text-sm text-gray-800 focus:outline-none focus:ring-1 focus:ring-[#0E7B35]" 
+              className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-lg text-sm text-gray-800 focus:outline-none focus:ring-1 focus:ring-primary" 
                 placeholder="e.g. Weekly Schedule"
             />
           </div>
@@ -98,7 +98,7 @@ export function SetlistModal({
                  type="date"
                  value={date}
                  onChange={(e) => setDate(e.target.value)}
-                 className="w-full pl-10 pr-4 py-2.5 bg-gray-50 border border-gray-200 rounded-lg text-sm text-gray-800 focus:outline-none focus:ring-1 focus:ring-[#0E7B35]"
+                 className="w-full pl-10 pr-4 py-2.5 bg-gray-50 border border-gray-200 rounded-lg text-sm text-gray-800 focus:outline-none focus:ring-1 focus:ring-primary"
                />
                <CalendarIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
              </div>
@@ -121,8 +121,8 @@ export function SetlistModal({
                type="button"
                onClick={() => setStatus(status === 'Active' ? 'Inactive' : 'Active')}
                className={cn(
-                 "relative inline-flex h-8 w-14 items-center rounded-full transition-colors cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-[#0E7B35] focus-visible:ring-offset-2",
-                 status === 'Active' ? 'bg-[#0E7B35]' : 'bg-gray-200'
+                 "relative inline-flex h-8 w-14 items-center rounded-full transition-colors cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2",
+                 status === 'Active' ? 'bg-primary' : 'bg-gray-200'
                )}
              >
                <span className="sr-only">Toggle Status</span>
@@ -156,7 +156,7 @@ export function SetlistModal({
                onClose();
              }} 
              data-shortcut="ctrl-s"
-             className="px-4 py-2 bg-[#0E7B35] hover:bg-[#0A5E28] text-white rounded-lg text-sm font-medium transition-colors cursor-pointer shadow-sm flex items-center gap-2"
+             className="px-4 py-2 bg-primary hover:bg-primary-dark text-white rounded-lg text-sm font-medium transition-colors cursor-pointer shadow-sm flex items-center gap-2"
            >
              {getButtonText()} <span className="opacity-70 text-[10px] uppercase font-mono tracking-widest hidden sm:inline-block">Ctrl+S</span>
            </button>

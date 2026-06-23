@@ -150,6 +150,7 @@ export interface AppSettings {
   timezone: string;
   contentRoot: string;
   playerMuteConfig: PlayerMuteConfig;
+  accentTheme: string;
 }
 
 export interface ActivityLog {

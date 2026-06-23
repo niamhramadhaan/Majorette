@@ -3,7 +3,7 @@ import { MapPin, Edit2, Save, X, Monitor, Plus, ExternalLink, Copy, Trash2, Rota
 import { useNavigate } from 'react-router-dom';
 import { createPortal } from 'react-dom';
 import { cn } from '../lib/utils';
-import { STORAGE_KEYS, saveVenues, addActivity, generateId } from '../lib/storage';
+import { STORAGE_KEYS, saveVenues, addActivity, generateId, DEFAULT_VENUE, getTimestamp } from '../lib/storage';
 import type { Venue, ScreenConfig } from '../types';
 
 export default function Locations() {
@@ -88,6 +88,15 @@ export default function Locations() {
     setTimeout(() => setToastMessage(null), 3000);
   };
 
+  const handleCreateVenue = () => {
+    const newVenue: Venue = { ...DEFAULT_VENUE, id: generateId(), createdAt: getTimestamp() };
+    saveVenues([newVenue]);
+    setVenues([newVenue]);
+    setToastMessage('Venue created');
+    setTimeout(() => setToastMessage(null), 3000);
+    addActivity({ message: 'Venue created: ' + newVenue.name, type: 'success' });
+  };
+
   const venue = venues[0];
 
   return (
@@ -112,11 +121,11 @@ export default function Locations() {
                   <label className="text-sm font-medium text-gray-700 block mb-1">Venue Name</label>
                   <input type="text" value={editingVenue.name}
                     onChange={(e) => setEditingVenue({ ...editingVenue, name: e.target.value })}
-                    className="w-full px-4 py-2 bg-gray-50 border border-gray-200 rounded-lg text-sm focus:outline-none focus:border-[#0E7B35] focus:ring-1 focus:ring-[#0E7B35]" />
+                    className="w-full px-4 py-2 bg-gray-50 border border-gray-200 rounded-lg text-sm focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary" />
                 </div>
                 <div className="flex gap-3">
                   <button onClick={handleSaveVenue}
-                    className="flex items-center gap-2 px-4 py-2 bg-[#0E7B35] hover:bg-[#0A5E28] text-white rounded-lg text-sm font-medium transition-colors">
+                    className="flex items-center gap-2 px-4 py-2 bg-primary hover:bg-primary-dark text-white rounded-lg text-sm font-medium transition-colors">
                     <Save className="w-4 h-4" /> Save Changes
                   </button>
                   <button onClick={() => setEditingVenue(null)}
@@ -129,8 +138,8 @@ export default function Locations() {
               <div>
                 <div className="flex items-start justify-between mb-4">
                   <div className="flex items-center gap-4">
-                    <div className="w-12 h-12 bg-[#0E7B35]/10 rounded-xl flex items-center justify-center">
-                      <MapPin className="w-6 h-6 text-[#0E7B35]" />
+                    <div className="w-12 h-12 bg-primary/10 rounded-xl flex items-center justify-center">
+                      <MapPin className="w-6 h-6 text-primary" />
                     </div>
                     <div>
                       <h3 className="text-lg font-semibold text-gray-900">{venue.name}</h3>
@@ -155,7 +164,7 @@ export default function Locations() {
           <div className="flex items-center justify-between">
             <h3 className="text-lg font-heading font-semibold text-gray-900">Screens</h3>
             <button onClick={() => setShowAddScreen(true)}
-              className="flex items-center gap-2 px-3 py-1.5 bg-[#0E7B35] hover:bg-[#0A5E28] text-white rounded-lg text-sm font-medium transition-colors">
+              className="flex items-center gap-2 px-3 py-1.5 bg-primary hover:bg-primary-dark text-white rounded-lg text-sm font-medium transition-colors">
               <Plus className="w-4 h-4" /> Add Screen
             </button>
           </div>
@@ -165,9 +174,9 @@ export default function Locations() {
               <div className="flex items-center gap-3">
                 <input type="text" value={newScreenName} onChange={(e) => setNewScreenName(e.target.value)}
                   placeholder="Screen name (e.g. Lobby Display)"
-                  className="flex-1 px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg text-sm focus:outline-none focus:border-[#0E7B35] focus:ring-1 focus:ring-[#0E7B35]"
+                  className="flex-1 px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg text-sm focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary"
                   onKeyDown={(e) => e.key === 'Enter' && handleAddScreen()} />
-                <button onClick={handleAddScreen} className="px-4 py-2 bg-[#0E7B35] hover:bg-[#0A5E28] text-white rounded-lg text-sm font-medium transition-colors">Add</button>
+                <button onClick={handleAddScreen} className="px-4 py-2 bg-primary hover:bg-primary-dark text-white rounded-lg text-sm font-medium transition-colors">Add</button>
                 <button onClick={() => { setShowAddScreen(false); setNewScreenName(''); }} className="px-4 py-2 bg-white border border-gray-200 text-gray-700 hover:bg-gray-50 rounded-lg text-sm font-medium transition-colors">Cancel</button>
               </div>
             </div>
@@ -176,7 +185,7 @@ export default function Locations() {
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             {venue.screens.map((screen) => (
               <div key={screen.id}
-                className="card p-4 hover:border-[#B9EA38]/50 transition-colors cursor-pointer group"
+                className="card p-4 hover:border-secondary/50 transition-colors cursor-pointer group"
                 onClick={() => navigate('/locations/screen/' + screen.id)}>
                 <div className="flex items-start justify-between mb-3">
                   <div className="flex items-center gap-3">
@@ -184,7 +193,7 @@ export default function Locations() {
                       <Monitor className="w-5 h-5 text-blue-600" />
                     </div>
                     <div>
-                      <h4 className="font-heading font-semibold text-gray-900 group-hover:text-[#0E7B35] transition-colors">{screen.name}</h4>
+                      <h4 className="font-heading font-semibold text-gray-900 group-hover:text-primary transition-colors">{screen.name}</h4>
                       <p className="text-[11px] text-gray-400 font-mono">{screen.id.slice(0, 12)}</p>
                     </div>
                   </div>
@@ -199,7 +208,7 @@ export default function Locations() {
                     <Copy className="w-3 h-3" /> {screen.playerUrl}
                   </button>
                   <button onClick={(e) => { e.stopPropagation(); window.open(screen.playerUrl, '_blank'); }}
-                    className="p-1 text-gray-400 hover:text-[#0E7B35] transition-colors" title="Open Player">
+                    className="p-1 text-gray-400 hover:text-primary transition-colors" title="Open Player">
                     <ExternalLink className="w-4 h-4" />
                   </button>
                 </div>
@@ -223,7 +232,11 @@ export default function Locations() {
         <div className="card p-12 text-center">
           <MapPin className="w-16 h-16 text-gray-300 mx-auto mb-4" />
           <h3 className="text-lg font-heading font-semibold text-gray-900 mb-2">No Venue Configured</h3>
-          <p className="text-gray-500">Complete the setup wizard to create your venue.</p>
+          <p className="text-gray-500 mb-4">Create a venue to manage your display locations and screens.</p>
+          <button onClick={handleCreateVenue}
+            className="inline-flex items-center gap-2 px-4 py-2 bg-primary hover:bg-primary-dark text-white rounded-lg text-sm font-medium transition-colors">
+            <Plus className="w-4 h-4" /> Create Venue
+          </button>
         </div>
       )}
 

@@ -97,7 +97,7 @@ export default function FilmDetail() {
   if (isLoading) {
     return (
       <div className="flex-1 flex items-center justify-center h-full">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#0E7B35]"></div>
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
       </div>
     );
   }
@@ -109,7 +109,7 @@ export default function FilmDetail() {
           <FilmIcon className="w-8 h-8" />
         </div>
         <h2 className="text-xl font-semibold text-gray-900">Media not found</h2>
-        <button onClick={() => navigate('/films')} className="text-[#0E7B35] font-medium hover:underline">Return to Library</button>
+        <button onClick={() => navigate('/films')} className="text-primary font-medium hover:underline">Return to Library</button>
       </div>
     );
   }
@@ -246,17 +246,17 @@ export default function FilmDetail() {
               <div>
                 <label className="text-xs font-semibold text-gray-700 uppercase tracking-wider mb-2 block">Title</label>
                 <input type="text" value={editTitle} onChange={(e) => setEditTitle(e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-1 focus:border-[#0E7B35] focus:ring-[#0E7B35]" />
+                  className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary" />
               </div>
               <div>
                 <label className="text-xs font-semibold text-gray-700 uppercase tracking-wider mb-2 block">Duration (seconds)</label>
                 <input type="number" min="1" value={editDuration} onChange={(e) => setEditDuration(parseInt(e.target.value) || 1)}
-                  className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-1 focus:border-[#0E7B35] focus:ring-[#0E7B35]" />
+                  className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary" />
               </div>
             </div>
             <div className="p-4 border-t border-gray-100 bg-gray-50 flex justify-end gap-3 flex-shrink-0">
               <button onClick={() => setIsEditModalOpen(false)} className="px-4 py-2 bg-white border border-gray-200 hover:bg-gray-50 text-gray-800 rounded-lg text-sm font-medium transition-colors cursor-pointer">Cancel</button>
-              <button onClick={handleSave} className="px-4 py-2 bg-[#0E7B35] hover:bg-[#0A5E28] text-white shadow-sm rounded-lg text-sm font-medium transition-colors cursor-pointer">Save Changes</button>
+              <button onClick={handleSave} className="px-4 py-2 bg-primary hover:bg-primary-dark text-white shadow-sm rounded-lg text-sm font-medium transition-colors cursor-pointer">Save Changes</button>
             </div>
           </div>
         </div>, document.body

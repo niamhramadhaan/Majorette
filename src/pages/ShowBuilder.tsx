@@ -299,17 +299,17 @@ export default function ShowBuilder() {
             value={scheduleName}
             onChange={(e) => setScheduleName(e.target.value)}
             placeholder="Schedule name"
-            className="px-3 py-2 bg-white border border-gray-200 rounded-lg text-sm focus:outline-none focus:border-[#0E7B35] focus:ring-1 focus:ring-[#0E7B35]"
+            className="px-3 py-2 bg-white border border-gray-200 rounded-lg text-sm focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary"
           />
           <select
             value={scheduleMode}
             onChange={(e) => setScheduleMode(e.target.value as 'loop' | 'once')}
-            className="px-3 py-2 bg-white border border-gray-200 rounded-lg text-sm focus:outline-none focus:border-[#0E7B35] focus:ring-1 focus:ring-[#0E7B35]"
+            className="px-3 py-2 bg-white border border-gray-200 rounded-lg text-sm focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary"
           >
             <option value="loop">Loop</option>
             <option value="once">Play Once</option>
           </select>
-          <button onClick={handleSave} className="flex items-center gap-2 bg-[#0E7B35] hover:bg-[#0A5E28] text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors cursor-pointer">
+          <button onClick={handleSave} className="flex items-center gap-2 bg-primary hover:bg-primary-dark text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors cursor-pointer">
             <Save className="w-4 h-4" />
             Save Schedule
           </button>
@@ -317,7 +317,7 @@ export default function ShowBuilder() {
       </div>
       
       {toastMessage && (
-        <div className="bg-[#B9EA38]/20 text-[#0A5E28] px-4 py-3 rounded-lg border border-[#B9EA38]/50 flex items-center gap-2 font-medium animate-in fade-in slide-in-from-top-2 text-sm">
+        <div className="bg-secondary/20 text-primary-dark px-4 py-3 rounded-lg border border-secondary/50 flex items-center gap-2 font-medium animate-in fade-in slide-in-from-top-2 text-sm">
           <PlayCircle className="w-4 h-4" />
           {toastMessage}
         </div>
@@ -333,7 +333,7 @@ export default function ShowBuilder() {
           min={toDatetimeLocal(new Date().toISOString())}
           value={toDatetimeLocal(startTime)}
           onChange={(e) => handleStartTimeChange(e.target.value)}
-          className="px-3 py-1.5 bg-white border border-gray-200 rounded-lg text-sm focus:outline-none focus:border-[#0E7B35] focus:ring-1 focus:ring-[#0E7B35]"
+          className="px-3 py-1.5 bg-white border border-gray-200 rounded-lg text-sm focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary"
         />
       </div>
 
@@ -352,7 +352,7 @@ export default function ShowBuilder() {
                   placeholder="Search titles..." 
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  className="pl-8 pr-3 py-1.5 w-full bg-white border border-gray-200 rounded text-xs focus:outline-none focus:border-[#0E7B35] focus:ring-1 focus:ring-[#0E7B35]"
+                  className="pl-8 pr-3 py-1.5 w-full bg-white border border-gray-200 rounded text-xs focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary"
                 />
               </div>
               <div className="relative">
@@ -360,7 +360,7 @@ export default function ShowBuilder() {
                 <select
                   value={filterType}
                   onChange={(e) => setFilterType(e.target.value)}
-                  className="pl-8 pr-3 py-1.5 w-full bg-white border border-gray-200 rounded text-xs focus:outline-none focus:border-[#0E7B35] focus:ring-1 focus:ring-[#0E7B35] appearance-none"
+                  className="pl-8 pr-3 py-1.5 w-full bg-white border border-gray-200 rounded text-xs focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary appearance-none"
                 >
                   <option value="All">All Types</option>
                   <option value="image">Images</option>
@@ -377,7 +377,7 @@ export default function ShowBuilder() {
                 <p className="text-sm text-gray-500">No content available</p>
                 <button
                   onClick={() => navigate('/films/ingest')}
-                  className="mt-2 text-xs text-[#0E7B35] hover:text-[#0A5E28] font-medium"
+                  className="mt-2 text-xs text-primary hover:text-primary-dark font-medium"
                 >
                   Add content first
                 </button>
@@ -387,7 +387,7 @@ export default function ShowBuilder() {
                 <div 
                   key={item.id}
                   onClick={() => addToSequence(item)}
-                  className="p-3 bg-white border border-gray-200 rounded-lg cursor-pointer hover:border-[#0E7B35] hover:shadow-sm transition-all"
+                  className="p-3 bg-white border border-gray-200 rounded-lg cursor-pointer hover:border-primary hover:shadow-sm transition-all"
                 >
                   <div className="flex items-start gap-3">
                     <div className="w-10 h-10 bg-gray-50 rounded-md flex justify-center items-center flex-shrink-0 text-gray-400 overflow-hidden">
@@ -417,12 +417,12 @@ export default function ShowBuilder() {
           </div>
         </div>
 
-        <div className="lg:col-span-2 card flex flex-col overflow-hidden border-t-4 border-t-[#0E7B35]">
+        <div className="lg:col-span-2 card flex flex-col overflow-hidden border-t-4 border-t-primary">
           <div className="p-4 border-b border-gray-100 bg-gray-50 flex flex-wrap gap-4 items-center justify-between">
             <div>
               <h3 className="font-heading font-semibold text-gray-800">Schedule Sequence</h3>
               <div className="flex items-center gap-4 mt-1 text-sm font-medium">
-                <span className="text-[#0E7B35]">Total Duration: {formatElapsed(totalDuration)}</span>
+                <span className="text-primary">Total Duration: {formatElapsed(totalDuration)}</span>
                 <span className="text-gray-500 text-xs">{sequence.filter(s => !s.audioOverlay).length} visual items</span>
                 {sequence.some(s => s.audioOverlay) && (
                   <span className="text-gray-400 text-xs">+ {sequence.filter(s => s.audioOverlay).length} background audio</span>
@@ -457,7 +457,7 @@ export default function ShowBuilder() {
                       key={item.id} 
                       value={item}
                       className={cn("p-4 border rounded-xl flex items-center gap-4 shadow-sm cursor-grab active:cursor-grabbing group",
-                        isBg ? "bg-[#0E7B35]/[0.03] border-[#0E7B35]/20" : "bg-white border-gray-200"
+                        isBg ? "bg-primary/[0.03] border-primary/20" : "bg-white border-gray-200"
                       )}
                     >
                       <div className="text-gray-300">
@@ -466,9 +466,9 @@ export default function ShowBuilder() {
                       <div className="flex-shrink-0 w-12 text-center">
                         <div className="text-xs font-bold text-gray-400">{index + 1}</div>
                         {isBg ? (
-                          <div className="text-[10px] text-[#0E7B35] font-semibold">BG</div>
+                          <div className="text-[10px] text-primary font-semibold">BG</div>
                         ) : (
-                          <div className="text-[10px] text-[#0E7B35] font-mono">{formatElapsed(cumOffset)}</div>
+                          <div className="text-[10px] text-primary font-mono">{formatElapsed(cumOffset)}</div>
                         )}
                       </div>
                       <div className="w-10 h-10 bg-gray-50 rounded-md flex items-center justify-center flex-shrink-0 overflow-hidden">
@@ -492,7 +492,7 @@ export default function ShowBuilder() {
                                 value={item.duration}
                                 onChange={(e) => updateItemDuration(item.id, parseInt(e.target.value) || 1)}
                                 onClick={(e) => e.stopPropagation()}
-                                className="w-14 px-1.5 py-0.5 bg-gray-50 border border-gray-200 rounded text-xs text-center focus:outline-none focus:border-[#0E7B35]"
+                                className="w-14 px-1.5 py-0.5 bg-gray-50 border border-gray-200 rounded text-xs text-center focus:outline-none focus:border-primary"
                                 min="1"
                               />
                               <span className="text-xs text-gray-500">s</span>
@@ -506,7 +506,7 @@ export default function ShowBuilder() {
                               className={cn(
                                 "flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-semibold border transition-colors",
                                 item.audioOverlay
-                                  ? "bg-[#0E7B35]/10 text-[#0E7B35] border-[#0E7B35]/30"
+                                  ? "bg-primary/10 text-primary border-primary/30"
                                   : "bg-gray-50 text-gray-400 border-gray-200 hover:border-gray-300"
                               )}
                               title={item.audioOverlay ? "Plays as background while images/videos show" : "Plays as its own item in the sequence"}
@@ -516,7 +516,7 @@ export default function ShowBuilder() {
                             </button>
                           )}
                           {isBg && overlayTarget && (
-                            <span className="text-[10px] text-[#0E7B35] font-medium">
+                            <span className="text-[10px] text-primary font-medium">
                               {'\u2192'} {overlayTarget}
                             </span>
                           )}
@@ -527,7 +527,7 @@ export default function ShowBuilder() {
                       </div>
                       <button
                         onClick={(e) => { e.stopPropagation(); togglePreview(item); }}
-                        className="p-1.5 text-gray-400 hover:text-[#0E7B35] rounded-md hover:bg-[#0E7B35]/10 opacity-0 group-hover:opacity-100 transition-all"
+                        className="p-1.5 text-gray-400 hover:text-primary rounded-md hover:bg-primary/10 opacity-0 group-hover:opacity-100 transition-all"
                         title="Preview"
                       >
                         {previewPlayingId === item.id ? <Pause className="w-3.5 h-3.5" /> : <Play className="w-3.5 h-3.5" />}
