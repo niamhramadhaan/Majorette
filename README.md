@@ -1,111 +1,230 @@
 # JEMIMA
 
-**Joint Engine Mini Media — A media scheduling and playback dashboard.**
+**Joint Engine Mini Media** — Open-source digital signage and media scheduling platform.
 
-JEMIMA is an open-source dashboard for scheduling and playing media content on a single screen. Designed for mini-theaters, cafés, retail displays, lobbies, and event spaces. Schedule images, videos, and audio — play them on a dedicated player screen with fullscreen playback and background audio support.
+Schedule images, videos, and audio across multiple screens. Play them on dedicated player instances with fullscreen playback, background audio, and real-time dashboard control. Built for mini-theaters, cafes, retail displays, lobbies, churches, and event spaces.
 
-## Features
+---
 
-- **Media Library** — Browse, ingest, and manage video, audio, and image files
-- **Schedule Builder** — Drag-and-drop sequence editor with loop/once modes
-- **Background Audio** — Attach audio tracks to play behind images/videos
-- **Fullscreen Player** — Dedicated `/player` route with keyboard shortcuts and auto-hide controls
-- **Dashboard** — Now Playing, Up Next, skip/prev, pause/resume, mark done, Play Again
-- **Schedule Status** — Track schedules as Ready, Now Playing, or Done
-- **Cross-tab Control** — Dashboard controls Player even when open in a separate tab
-- **Content Server** — Express API for streaming local media files with range request support
-- **Auto-complete** — "Play Once" schedules automatically mark as done when finished
+## ◈ Features
 
-## Getting Started
+### ◆ Multi-Screen Playback
 
-```bash
-git clone https://github.com/niamh-ramadhaan/majorette
-cd majorette
+- Assign schedules to specific screens from the dashboard, schedule builder, or Play Again modal
+- Each screen runs independently at `/player/screen/:screenId`
+- Per-screen controls: skip, pause, resume, mark done — all scoped via screen-specific signals
+- Dashboard Now Playing carousel with per-screen view and controls
+- Open Player dropdown lists all screens for quick access
+- Default screen fallback — unassigned schedules play on the default screen automatically
+
+### ◆ Smart Scheduling
+
+- Drag-and-drop schedule builder with visual/audio/image support
+- Loop mode (indefinite repeat) and Play Once mode (auto-marks done)
+- Start time picker with past-time prevention
+- Schedule status tracking: Ready / Now Playing / Done
+- Play Again: recreate completed schedules with new start time and screen assignment
+- Schedule table shows assigned screen(s) per schedule
+- Sort by newest, oldest, or next play. Filter by status.
+
+### ◆ Background Audio
+
+- Attach audio tracks to play behind images or videos
+- Bidirectional detection — audio before or after a visual item is auto-detected as background
+- Continuous playback across multiple visual items until natural end
+- Independent mute control — background audio plays regardless of mute state
+
+### ◆ Accent Color Themes
+
+- 8 preset themes: Emerald, Forest, Ocean, Royal, Crimson, Sunset, Rose, Slate
+- Live preview in Settings — click a theme, see it change instantly
+- Persists across sessions via localStorage
+- Affects all UI elements: buttons, badges, progress bars, dots, focus rings
+
+### ◆ Player Controls
+
+- Lock button (L key) hides all UI during screenings — prevents accidental display on mouse move
+- Keyboard shortcuts: Space (play/pause), F (fullscreen), M (mute/unmute), L (lock), ? (help)
+- Auto-hide controls after 3 seconds of inactivity
+- Auto-show on new media item or background audio start
+- Error overlay with auto-skip countdown on media load failure
+
+### ◆ Dashboard
+
+- Now Playing carousel — cycle through screens, each shows active schedule with controls
+- Up Next — next items in the current schedule queue
+- Last Play — history of completed schedules with duration, end time, and screen
+- Top Played Media — most frequently scheduled content
+- Quick Actions, Stats, Recent Activity widgets
+- Keyboard shortcuts reference widget
+
+### ◆ Media Library
+
+- Browse, ingest, and manage video, audio, and image files
+- Bulk import from server filesystem
+- Detail view with preview and metadata
+- Bulk delete with checklist mode and confirmation
+- Search and filter by type
+
+### ◆ Settings & Onboarding
+
+- 3-step onboarding wizard for new users
+- Venue name, timezone, content folder path configuration
+- Player mute config — 4-scenario matrix (video, audio, video+overlay, image)
+- Accent color theme picker
+- Edit mode with draft state — unsaved changes trigger discard confirmation on navigation
+- Selective logout — preserves settings and venue data
+
+---
+
+## ▸ Getting Started
+
+### Prerequisites
+
+- Node.js 18+
+- npm
+
+### Install
+
+```
+git clone https://github.com/niamhramadhaan/Majorette.git
+cd Majorette
 npm install
+```
+
+### Configure
+
+```
 cp .env.example .env.local
+```
+
+Edit `.env.local`:
+
+```
+VITE_APP_NAME=JEMIMA
+VITE_CONTENT_ROOT=D:\JEMIMA
+VITE_SERVER_URL=http://localhost:3001
+```
+
+### Run
+
+```
 npm run dev
 ```
 
-This starts both the Vite dev server (port 3000) and the Express content server (port 3001) concurrently.
+This starts the Vite dev server (port 3000) and Express content server (port 3001) concurrently.
 
-Open [http://localhost:3000](http://localhost:3000).
+Open `http://localhost:3000` — enter your name — complete the 3-step setup wizard.
 
-## Project Structure
+---
+
+## ▸ Usage
+
+### Create a Schedule
+
+1. Go to **Schedules** → click **Create Schedule**
+2. Drag media items from the library panel into the sequence
+3. Set start time, mode (Loop / Play Once), and assign to screen(s)
+4. Click **Save Schedule** — it starts playing at the configured time
+
+### Play on a Screen
+
+1. Go to **Locations** → click a screen → copy the player URL
+2. Open that URL in a browser on the display device
+3. The player auto-plays the assigned schedule in fullscreen
+
+### Control from Dashboard
+
+- **Now Playing carousel** — use ◀ ▶ arrows to switch between screens
+- **Skip** — prev/next buttons jump between items
+- **Pause / Resume** — toggle playback per screen
+- **Mark Done** — stop and complete the current schedule
+- **Play Again** — recreate a completed schedule with new start time and screen assignment
+
+### Keyboard Shortcuts (Player)
+
+| Key | Action |
+|-----|--------|
+| Space | Play / Pause |
+| F | Toggle fullscreen |
+| M | Mute / Unmute |
+| L | Lock / Unlock controls |
+| ? | Toggle shortcuts help |
+
+---
+
+## ◈ Tech Stack
+
+| Layer | Technology |
+|-------|-----------|
+| Frontend | React 19 · TypeScript · Tailwind CSS v4 |
+| Routing | React Router v7 (BrowserRouter) |
+| Build | Vite 6 |
+| Backend | Express.js (media file streaming, no auth/database) |
+| Storage | Browser localStorage (per-device) |
+| Icons | Lucide React |
+| Animation | Framer Motion |
+
+---
+
+## ◈ Project Structure
 
 ```
 src/
-  pages/
-    Dashboard.tsx    # Overview: Now Playing, Up Next, controls, Last Played
-    Films.tsx        # Media library with filters and search
-    FilmDetail.tsx   # Single media metadata and preview
-    FilmIngest.tsx   # Bulk import media files
-    Schedule.tsx     # Schedule list with status, sort, and filter
-    ShowBuilder.tsx  # Drag-and-drop sequence editor
-    Player.tsx       # Fullscreen playback runtime
-    QuickStart.tsx   # Onboarding wizard
-    Settings.tsx     # App configuration
-    Login.tsx        # Name-only login
-    Locations.tsx    # Venue management
-  components/
-    Layout.tsx       # App shell with sidebar + topbar
-    Sidebar.tsx      # Navigation sidebar
-    Topbar.tsx       # Top bar with search and user menu
-    Pagination.tsx   # Reusable pagination
-  config/
-    app.ts           # APP_CONFIG (name, tagline, server URL)
-  lib/
-    storage.ts       # localStorage helpers, schedule logic, migration
-    utils.ts         # cn() utility
-    mockData.ts      # Sample data for onboarding
-  types/
-    index.ts         # TypeScript interfaces
-  index.css          # Global styles, animations, design tokens
-  App.tsx            # Routes and route guards
-  main.tsx           # Entry point with migration
-server.cjs           # Express content server
+├── components/          Layout, Sidebar, Topbar, Pagination
+├── config/              APP_CONFIG constants
+├── hooks/               useLocalStorage
+├── lib/                 storage, theme, utils, mockData
+├── pages/
+│   ├── Dashboard        Overview with Now Playing carousel
+│   ├── Player           Global fullscreen player
+│   ├── ScreenPlayer     Per-screen player (multi-screen)
+│   ├── Schedule         Schedule list with status/sort/filter
+│   ├── ShowBuilder      Drag-and-drop sequence editor
+│   ├── Films            Media library
+│   ├── FilmDetail       Single media detail + preview
+│   ├── FilmIngest       Bulk import from filesystem
+│   ├── Locations        Venue + screen management
+│   ├── ScreenDetail     Per-screen settings + status
+│   ├── Settings         App configuration + theme picker
+│   ├── Login            Name-only login
+│   └── QuickStart       3-step onboarding
+├── themes.ts            8 accent color presets
+├── types/               TypeScript interfaces
+├── App.tsx              Routes + guards
+├── main.tsx             Entry point
+└── index.css            Design tokens, animations
 ```
 
-## Content Server
+---
 
-The Express server (`server.cjs`) serves local media files:
+## ◈ Roadmap
 
-| Endpoint | Description |
-|----------|-------------|
-| `GET /health` | Server status and content root info |
-| `GET /files?type=video` | List media files (filter by `video`, `audio`, `image`) |
-| `GET /content/:path` | Stream a file with range request support |
+**Current: v2.0** — Multi-screen platform with accent themes, per-screen scheduling, and player controls lock.
 
-Configure the content root via `--content-root` CLI flag or `CONTENT_ROOT` env var.
+| Version | Focus |
+|---------|-------|
+| v2.1 | Error boundaries, tests, polish |
+| v3.0 | Player as standalone EXE (Electron) |
+| v4.0 | Persistent backend (database, auth, API) |
+| v5.0 | Cloud / SaaS option |
 
-## Player
+See [ROADMAP.md](./ROADMAP.md) for full details and session logs.
 
-Open `/player` in a browser to launch the fullscreen player. It auto-plays the active schedule.
+---
 
-**Keyboard shortcuts:**
-- `Space` — Play/Pause
-- `F` — Toggle fullscreen
-- `M` — Mute/Unmute
+## ◈ License
 
-**Background audio:** Mark audio items as "Background" in the Show Builder. They play behind the nearest image/video. The player starts muted — click the mute button to unmute when background audio is present.
+**Business Source License 1.1**
 
-**Controls:** Auto-hide after 3 seconds of inactivity. Move mouse to show. Auto-show briefly on new media or when background audio starts (if muted).
+Free for non-production use (development, testing, evaluation). Production use in business environments requires a commercial license. Converts to Apache 2.0 on June 23, 2029.
 
-## Schedule Modes
+See [LICENSE](./LICENSE) for full terms.
 
-- **Loop** — Content repeats indefinitely from the start time
-- **Play Once** — Content plays through once, then auto-marks as "Done"
+---
 
-## Design System
+## ▸ Links
 
-Defined in `src/index.css` under `@theme`:
-- **Primary:** Forest Green (`#0E7B35`)
-- **Secondary:** Lime (`#B9EA38`)
-- **Typography:** Poppins (body), Montserrat (headings)
-
-## Roadmap
-
-See [ROADMAP.md](./ROADMAP.md) for detailed build status and next phases.
-
-## Stack
-
-Vite · React 19 · TypeScript · Tailwind CSS v4 · React Router v7 · Express
+- [GitHub Repository](https://github.com/niamhramadhaan/Majorette)
+- [Issues](https://github.com/niamhramadhaan/Majorette/issues)
+- [Discussions](https://github.com/niamhramadhaan/Majorette/discussions)

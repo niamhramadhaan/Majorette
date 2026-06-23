@@ -606,3 +606,154 @@ export const SAMPLE_SCHEDULE: Schedule = {
   createdAt: new Date().toISOString(),
   updatedAt: new Date().toISOString(),
 };
+
+// ─── Screen-Scoped Functions (multi-player) ─────────────────────────────────
+
+export function getScreenById(screenId: string): ScreenConfig | null {
+  try {
+    const stored = localStorage.getItem(STORAGE_KEYS.VENUES);
+    if (!stored) return null;
+    const venues: Venue[] = JSON.parse(stored);
+    for (const v of venues) {
+      const found = v.screens.find(s => s.id === screenId);
+      if (found) return found;
+    }
+    return null;
+  } catch {
+    return null;
+  }
+}
+
+function getAssignedScheduleIds(): Set<string> {
+  const ids = new Set<string>();
+  try {
+    const stored = localStorage.getItem(STORAGE_KEYS.VENUES);
+    if (!stored) return ids;
+    const venues: Venue[] = JSON.parse(stored);
+    for (const v of venues) {
+      for (const s of v.screens) {
+        if (s.scheduleId) ids.add(s.scheduleId);
+      }
+    }
+  } catch { /* ignore */ }
+  return ids;
+}
+
+export function getActiveScheduleForScreen(schedules: Schedule[], content: LocalContent[], screenId: string): Schedule | null {
+  const screen = getScreenById(screenId);
+  if (screen?.scheduleId) {
+    const assigned = schedules.find(s => s.id === screen.scheduleId && s.status !== 'done');
+    if (assigned) {
+      const startDate = getScheduleStartTime(assigned);
+      const totalDuration = getScheduleTotalDuration(assigned, content) * 1000;
+      if (totalDuration <= 0) return null;
+      const start = startDate.getTime();
+      const end = assigned.mode === 'loop' ? Infinity : start + totalDuration;
+      if (start <= Date.now() && Date.now() <= end) return assigned;
+    }
+  }
+  const assignedIds = getAssignedScheduleIds();
+  const unassigned = schedules.filter(s => !assignedIds.has(s.id));
+  return getActiveSchedule(unassigned, content);
+}
+
+export function getUpcomingScheduleForScreen(schedules: Schedule[], content: LocalContent[], screenId: string): Schedule | null {
+  const screen = getScreenById(screenId);
+  if (screen?.scheduleId) {
+    const assigned = schedules.find(s => s.id === screen.scheduleId && s.status !== 'done');
+    if (assigned) {
+      const startDate = getScheduleStartTime(assigned);
+      if (startDate.getTime() > Date.now()) return assigned;
+    }
+  }
+  const assignedIds = getAssignedScheduleIds();
+  const unassigned = schedules.filter(s => !assignedIds.has(s.id));
+  return getUpcomingSchedule(unassigned, content);
+}
+
+function screenSignalKey(base: string, screenId: string): string {
+  return `${base}_${screenId}`;
+}
+
+export function emitSkipSignalForScreen(direction: 'next' | 'prev', screenId: string): void {
+  const key = screenSignalKey('jemima_skip_signal', screenId);
+  window.dispatchEvent(new CustomEvent(`skip-signal-${screenId}`, { detail: { direction, timestamp: Date.now() } }));
+  localStorage.setItem(key, JSON.stringify({ direction, timestamp: Date.now() }));
+}
+
+export function emitResumeSignalForScreen(screenId: string): void {
+  const key = screenSignalKey('jemima_resume_signal', screenId);
+  window.dispatchEvent(new CustomEvent(`resume-signal-${screenId}`));
+  localStorage.setItem(key, JSON.stringify({ timestamp: Date.now() }));
+}
+
+export function emitPauseSignalForScreen(screenId: string): void {
+  const key = screenSignalKey('jemima_pause_signal', screenId);
+  window.dispatchEvent(new CustomEvent(`pause-signal-${screenId}`));
+  localStorage.setItem(key, JSON.stringify({ timestamp: Date.now() }));
+}
+
+export function emitDoneSignalForScreen(schedules: Schedule[], scheduleId: string, screenId: string): Schedule[] {
+  const key = screenSignalKey('jemima_done_signal', screenId);
+  window.dispatchEvent(new CustomEvent(`done-signal-${screenId}`));
+  localStorage.setItem(key, JSON.stringify({ timestamp: Date.now() }));
+  const updated = setScheduleStatus(schedules, scheduleId, 'done');
+  localStorage.setItem(STORAGE_KEYS.SCHEDULES, JSON.stringify(updated));
+  return updated;
+}
+
+export function writeScreenPlayerState(screenId: string, state: { isPlaying: boolean; manualOffset: number; pauseStart: number | null }): void {
+  const key = screenSignalKey('jemima_screen_player_state', screenId);
+  localStorage.setItem(key, JSON.stringify({ ...state, timestamp: Date.now() }));
+}
+
+export function getScreenPlayerState(screenId: string): { isPlaying: boolean; manualOffset: number; pauseStart: number | null } | null {
+  try {
+    const key = screenSignalKey('jemima_screen_player_state', screenId);
+    const raw = localStorage.getItem(key);
+    return raw ? JSON.parse(raw) : null;
+  } catch {
+    return null;
+  }
+}
+
+export function assignScheduleToScreen(screenId: string, scheduleId: string): void {
+  try {
+    const stored = localStorage.getItem(STORAGE_KEYS.VENUES);
+    if (!stored) return;
+    const venues: Venue[] = JSON.parse(stored);
+    const updated = venues.map(v => ({
+      ...v,
+      screens: v.screens.map(s => s.id === screenId ? { ...s, scheduleId } : s),
+    }));
+    localStorage.setItem(STORAGE_KEYS.VENUES, JSON.stringify(updated));
+  } catch { /* ignore */ }
+}
+
+export function unassignScheduleFromScreen(screenId: string): void {
+  try {
+    const stored = localStorage.getItem(STORAGE_KEYS.VENUES);
+    if (!stored) return;
+    const venues: Venue[] = JSON.parse(stored);
+    const updated = venues.map(v => ({
+      ...v,
+      screens: v.screens.map(s => {
+        if (s.id !== screenId) return s;
+        const { scheduleId, ...rest } = s;
+        return rest;
+      }),
+    }));
+    localStorage.setItem(STORAGE_KEYS.VENUES, JSON.stringify(updated));
+  } catch { /* ignore */ }
+}
+
+export function getAllScreens(): ScreenConfig[] {
+  try {
+    const stored = localStorage.getItem(STORAGE_KEYS.VENUES);
+    if (!stored) return [];
+    const venues: Venue[] = JSON.parse(stored);
+    return venues.flatMap(v => v.screens);
+  } catch {
+    return [];
+  }
+}

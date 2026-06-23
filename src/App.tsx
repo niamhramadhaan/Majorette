@@ -12,6 +12,7 @@ import Login from './pages/Login';
 import Settings from './pages/Settings';
 import QuickStart from './pages/QuickStart';
 import Player from './pages/Player';
+import ScreenPlayer from './pages/ScreenPlayer';
 import ScreenDetail from './pages/ScreenDetail';
 import { getSettings, getUserName } from './lib/storage';
 
@@ -43,6 +44,7 @@ function AppContent() {
         </RequireAuth>
       } />
       <Route path="/player" element={<Player />} />
+      <Route path="/player/screen/:screenId" element={<ScreenPlayer />} />
       <Route path="/" element={
         <RequireAuth>
           <RequireSetup>

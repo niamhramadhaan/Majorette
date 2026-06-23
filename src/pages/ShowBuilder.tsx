@@ -1,10 +1,10 @@
 import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ArrowLeft, Clock, Film, GripVertical, Plus, Trash2, Save, PlayCircle, Search, Filter, Music, Image as ImageIcon, Play, Pause } from 'lucide-react';
+import { ArrowLeft, Clock, Film, GripVertical, Plus, Trash2, Save, PlayCircle, Search, Filter, Music, Image as ImageIcon, Play, Pause, Monitor, Check, ChevronsUpDown } from 'lucide-react';
 import { cn } from '../lib/utils';
 import { Reorder } from 'motion/react';
-import { STORAGE_KEYS, generateId, getTimestamp, addActivity, getThumbnailUrl, resolveFilePath } from '../lib/storage';
-import type { LocalContent, Schedule, ScheduleItem } from '../types';
+import { STORAGE_KEYS, generateId, getTimestamp, addActivity, getThumbnailUrl, resolveFilePath, getAllScreens, assignScheduleToScreen } from '../lib/storage';
+import type { LocalContent, Schedule, ScheduleItem, ScreenConfig } from '../types';
 
 interface SequenceItem {
   id: string;
@@ -56,7 +56,21 @@ export default function ShowBuilder() {
   const [toastMessage, setToastMessage] = useState<string | null>(null);
   const [editingScheduleId, setEditingScheduleId] = useState<string | null>(null);
   const [previewPlayingId, setPreviewPlayingId] = useState<string | null>(null);
+  const [screens, setScreens] = useState<ScreenConfig[]>([]);
+  const [selectedScreenIds, setSelectedScreenIds] = useState<string[]>(['screen-default']);
+  const [showScreenDropdown, setShowScreenDropdown] = useState(false);
+  const screenDropdownRef = useRef<HTMLDivElement>(null);
   const previewRef = useRef<HTMLAudioElement | null>(null);
+
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (screenDropdownRef.current && !screenDropdownRef.current.contains(e.target as Node)) {
+        setShowScreenDropdown(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
 
   useEffect(() => {
     return () => { previewRef.current?.pause(); };
@@ -98,9 +112,16 @@ export default function ShowBuilder() {
               };
             });
             setSequence(items);
+
+            const allScreens = getAllScreens();
+            setScreens(allScreens);
+            const preSelected = allScreens.filter(sc => sc.scheduleId === editingId).map(sc => sc.id);
+            setSelectedScreenIds(preSelected);
           }
         }
         localStorage.removeItem('editing_schedule_id');
+      } else {
+        setScreens(getAllScreens());
       }
     } catch {
       // ignore
@@ -243,6 +264,12 @@ export default function ShowBuilder() {
           return s;
         });
         localStorage.setItem(STORAGE_KEYS.SCHEDULES, JSON.stringify(updatedSchedules));
+        const screenIdsToAssign = selectedScreenIds.length > 0 ? selectedScreenIds : ['screen-default'];
+        for (const screenId of screenIdsToAssign) {
+          assignScheduleToScreen(screenId, editingScheduleId);
+          const screenName = screens.find(s => s.id === screenId)?.name || screenId;
+          addActivity({ message: `Assigned "${scheduleName}" to ${screenName}`, type: 'success' });
+        }
         addActivity({ message: `Updated schedule: ${scheduleName}`, type: 'success' });
       } else {
         const venueId = localStorage.getItem(STORAGE_KEYS.VENUES)
@@ -262,6 +289,12 @@ export default function ShowBuilder() {
 
         const updatedSchedules = [...schedules, newSchedule];
         localStorage.setItem(STORAGE_KEYS.SCHEDULES, JSON.stringify(updatedSchedules));
+        const screenIdsToAssign = selectedScreenIds.length > 0 ? selectedScreenIds : ['screen-default'];
+        for (const screenId of screenIdsToAssign) {
+          assignScheduleToScreen(screenId, newSchedule.id);
+          const screenName = screens.find(s => s.id === screenId)?.name || screenId;
+          addActivity({ message: `Assigned "${scheduleName}" to ${screenName}`, type: 'success' });
+        }
         addActivity({ message: `Created schedule: ${scheduleName}`, type: 'success' });
       }
 
@@ -335,6 +368,45 @@ export default function ShowBuilder() {
           onChange={(e) => handleStartTimeChange(e.target.value)}
           className="px-3 py-1.5 bg-white border border-gray-200 rounded-lg text-sm focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary"
         />
+        {screens.length > 0 && (
+          <div className="relative ml-auto" ref={screenDropdownRef}>
+            <button onClick={() => setShowScreenDropdown(!showScreenDropdown)}
+              className="flex items-center gap-2 px-3 py-1.5 bg-white border border-gray-200 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors">
+              <Monitor className="w-3.5 h-3.5 text-gray-400" />
+              Screens
+              {selectedScreenIds.length > 0 && (
+                <span className="px-1.5 py-0.5 bg-primary/10 text-primary text-[10px] font-semibold rounded-full">{selectedScreenIds.length}</span>
+              )}
+              <ChevronsUpDown className="w-3 h-3 text-gray-400" />
+            </button>
+            {showScreenDropdown && (
+              <div className="absolute top-full right-0 mt-1 bg-white rounded-xl shadow-xl border border-gray-100 py-2 w-56 z-50 max-h-60 overflow-y-auto">
+                <p className="px-3 py-1.5 text-[10px] font-semibold text-gray-400 uppercase tracking-wider">Assign to Screens</p>
+                {screens.map(s => {
+                  const isSelected = selectedScreenIds.includes(s.id);
+                  return (
+                    <button key={s.id}
+                      onClick={() => setSelectedScreenIds(prev => isSelected ? prev.filter(id => id !== s.id) : [...prev, s.id])}
+                      className="w-full flex items-center gap-2.5 px-3 py-2 text-left hover:bg-gray-50 transition-colors">
+                      <div className={cn("w-4 h-4 rounded flex items-center justify-center border-2 transition-colors flex-shrink-0",
+                        isSelected ? "bg-primary border-primary" : "border-gray-300")}>
+                        {isSelected && <Check className="w-3 h-3 text-white" />}
+                      </div>
+                      <Monitor className="w-3.5 h-3.5 text-gray-400 flex-shrink-0" />
+                      <span className="text-sm text-gray-700 truncate">{s.name}</span>
+                    </button>
+                  );
+                })}
+                {selectedScreenIds.length > 0 && (
+                  <button onClick={() => setSelectedScreenIds([])}
+                    className="w-full px-3 py-2 text-xs text-gray-400 hover:text-gray-600 border-t border-gray-100 mt-1 pt-2">
+                    Clear selection
+                  </button>
+                )}
+              </div>
+            )}
+          </div>
+        )}
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 flex-1 min-h-0">

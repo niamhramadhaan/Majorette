@@ -126,6 +126,7 @@ export interface ScreenConfig {
   name: string;
   playerUrl: string;
   venueId: string;
+  scheduleId?: string;
   muteConfigOverride?: PlayerMuteConfig;
   createdAt: string;
 }
