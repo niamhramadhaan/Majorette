@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { ArrowRight, ArrowLeft, Check, Play, Film, Music, Image as ImageIcon } from 'lucide-react';
 import { cn } from '../lib/utils';
 import { APP_CONFIG } from '../config/app';
-import { STORAGE_KEYS, DEFAULT_SETTINGS, DEFAULT_VENUE, SAMPLE_CONTENT, SAMPLE_SCHEDULE, generateId, getTimestamp, addActivity } from '../lib/storage';
+import { STORAGE_KEYS, DEFAULT_SETTINGS, DEFAULT_VENUE, generateId, getTimestamp, addActivity } from '../lib/storage';
 import type { Venue, AppSettings } from '../types';
 
 const STEPS = [
@@ -25,11 +25,8 @@ export default function QuickStart() {
     setIsCreating(true);
 
     const venue: Venue = { ...DEFAULT_VENUE, id: generateId(), name: venueName || 'My Venue', createdAt: getTimestamp() };
-    const schedule = { ...SAMPLE_SCHEDULE, id: generateId(), locationId: venue.id, createdAt: getTimestamp(), updatedAt: getTimestamp() };
     const settings: AppSettings = { ...DEFAULT_SETTINGS, setupComplete: true, venueName: venue.name };
 
-    localStorage.setItem(STORAGE_KEYS.CONTENT, JSON.stringify(SAMPLE_CONTENT));
-    localStorage.setItem(STORAGE_KEYS.SCHEDULES, JSON.stringify([schedule]));
     localStorage.setItem(STORAGE_KEYS.VENUES, JSON.stringify([venue]));
     localStorage.setItem(STORAGE_KEYS.SETTINGS, JSON.stringify(settings));
 
@@ -96,7 +93,7 @@ export default function QuickStart() {
             <div className="text-center space-y-6">
               <div className="w-20 h-20 bg-green-50 rounded-full flex items-center justify-center mx-auto"><Check className="w-10 h-10 text-primary" /></div>
               <h3 className="text-xl font-heading font-semibold text-gray-900">You're All Set!</h3>
-              <p className="text-gray-600">Sample content and schedule have been created. Add your own media files to get started.</p>
+              <p className="text-gray-600">Your venue is ready. Add media files to the content folder, then create a schedule to start playing.</p>
               <div className="bg-gray-50 rounded-xl p-4">
                 <p className="text-sm text-gray-500 mb-1">Content Folder</p>
                 <p className="text-xs font-mono text-gray-600 mt-2">{APP_CONFIG.contentRoot}</p>

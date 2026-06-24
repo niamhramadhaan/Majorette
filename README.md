@@ -153,6 +153,87 @@ Open `http://localhost:3000` — enter your name — complete the 3-step setup w
 
 ---
 
+## ▸ Tutorial
+
+### Workflow
+
+<!-- Add workflow diagram image here -->
+<!-- Suggested: horizontal flow showing Ingest → Schedule → Screen → Player -->
+
+### 1. Add Media
+
+<!-- Add screenshot of Films page with Ingest button highlighted -->
+
+JEMIMA reads media files directly from a folder on your system — no uploading required.
+
+1. Place your media files in the content folder (path shown in **Settings**)
+2. Navigate to **Films** → click **Ingest**
+3. Supported formats:
+   - **Video:** MP4, WebM, MKV, AVI, MOV
+   - **Audio:** MP3, WAV, OGG, FLAC, AAC
+   - **Image:** JPG, PNG, WebP, GIF, SVG
+
+### 2. Create a Schedule
+
+<!-- Add screenshot of schedule builder -->
+
+A schedule defines what plays and in what order.
+
+1. Go to **Schedule** → click **New Schedule**
+2. Give it a name
+3. Drag media from your library into the timeline
+4. Set the mode:
+   - **Loop** — plays continuously
+   - **Once** — plays once, then marks as done
+5. Set duration for each item (videos use their natural length)
+
+### 3. Assign to Screens
+
+<!-- Add screenshot of screen picker -->
+
+Screens are display endpoints — each one can play a different schedule.
+
+1. Open the schedule builder
+2. Use the **Screen picker** in the builder header
+3. Select one or more screens
+4. Save the schedule
+
+Multiple screens can share the same schedule, or each screen can have its own.
+
+### 4. Background Audio
+
+<!-- Add screenshot of audio overlay toggle -->
+
+Background audio plays continuously behind your video or image content.
+
+1. Add an audio file to your schedule
+2. Toggle the **Audio Overlay** switch on that item
+3. The audio loops behind all other items until the schedule ends
+
+### 5. Open the Player
+
+<!-- Add screenshot of player in fullscreen -->
+
+The player displays your scheduled content in fullscreen.
+
+- **Default Player** — plays the active schedule (no screen assignment)
+- **Screen Player** — plays the schedule assigned to a specific screen
+- **Electron EXE** — standalone kiosk player (see v3.0)
+
+#### Keyboard Shortcuts
+
+| Key | Action |
+|-----|--------|
+| Space | Play / Pause |
+| → | Skip to next |
+| ← | Skip to previous |
+| F | Toggle fullscreen |
+| M | Mute / Unmute |
+| L | Lock controls (hide UI) |
+| ? | Show shortcuts |
+
+---
+
 ## ◈ Tech Stack
 
 | Layer | Technology |

@@ -90,7 +90,7 @@ export default function Layout() {
       <div className="relative flex flex-col flex-1 overflow-hidden h-screen z-0 min-w-0">
         <Topbar setSidebarOpen={setSidebarOpen} requestNavigation={requestNavigation} setDirty={setIsDirty} />
         <main className="w-full grow overflow-y-auto p-4 sm:p-6 md:p-10 max-w-7xl mx-auto relative z-0">
-          <Outlet context={{ setDirty: setIsDirty }} />
+          <Outlet context={{ setDirty: setIsDirty, requestNavigation }} />
         </main>
       </div>
 

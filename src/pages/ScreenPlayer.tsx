@@ -1,14 +1,14 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useParams } from 'react-router-dom';
-import { Play, Pause, Maximize, Minimize, Volume2, VolumeX, Film, AlertCircle, Clock, Music, CheckCircle, Lock, LockOpen, Keyboard, Monitor } from 'lucide-react';
+import { Play, Pause, Maximize, Minimize, Volume2, VolumeX, Film, AlertCircle, Clock, Music, CheckCircle, Lock, LockOpen, Keyboard, Monitor, RefreshCw } from 'lucide-react';
 import { cn } from '../lib/utils';
 import {
   STORAGE_KEYS, resolveFilePath, getCurrentItemIndex, getScheduleElapsed,
   getScheduleStartTime, getThumbnailUrl, getSettings, getScreenById,
   getActiveScheduleForScreen, getUpcomingScheduleForScreen,
-  writeScreenPlayerState, getScreenPlayerState,
+  writeScreenPlayerState, getScreenPlayerState, ensureScreenExists, syncToApi,
 } from '../lib/storage';
-import type { LocalContent, Schedule, ScheduleItem, ScreenConfig } from '../types';
+import type { LocalContent, Schedule, ScheduleItem, ScreenConfig, Venue } from '../types';
 
 const SKIP_DELAY = 5;
 const CONTROLS_HIDE_DELAY = 3000;
@@ -58,13 +58,16 @@ export default function ScreenPlayer() {
   const [scheduleDone, setScheduleDone] = useState(false);
   const [controlsLocked, setControlsLocked] = useState(false);
   const [showShortcuts, setShowShortcuts] = useState(false);
+  const [isReconnecting, setIsReconnecting] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
 
   const mainVideoRef = useRef<HTMLVideoElement | null>(null);
   const mainAudioRef = useRef<HTMLAudioElement | null>(null);
-  const bgAudioRef = useRef<HTMLAudioElement | null>(null);
+  const bgAudioRef = useRef<HTMLVideoElement | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const controlsTimeoutRef = useRef<number | null>(null);
   const skipTimerRef = useRef<number | null>(null);
+  const playPromiseRef = useRef<Promise<void> | null>(null);
   const prevVisualIndexRef = useRef<number>(-1);
   const bgAudioIdRef = useRef<string | null>(null);
   const bgAudioStartRef = useRef<number>(0);
@@ -77,26 +80,123 @@ export default function ScreenPlayer() {
   const controlsLockedRef = useRef(false);
   const muteInitializedRef = useRef(false);
   const prevSkipVersionRef = useRef(0);
+  const elapsedSecRef = useRef(0);
 
   const sid = screenId || '';
 
-  useEffect(() => {
-    if (sid) setScreen(getScreenById(sid));
+  const log = (msg: string) => console.log(`[ScreenPlayer] ${msg}`);
+
+  const loadData = useCallback(() => {
+    try {
+      log(`loadData — screenId: ${sid}`);
+
+      const storedContent = localStorage.getItem(STORAGE_KEYS.CONTENT);
+      const storedSchedules = localStorage.getItem(STORAGE_KEYS.SCHEDULES);
+      const contentItems = storedContent ? JSON.parse(storedContent) : [];
+      const scheduleItems = storedSchedules ? JSON.parse(storedSchedules) : [];
+
+      log(`localStorage — content: ${contentItems.length}, schedules: ${scheduleItems.length}`);
+
+      setContent(contentItems);
+      setSchedules(scheduleItems);
+
+      // If content or schedules are empty, fetch from server API
+      if (contentItems.length === 0) {
+        fetch('/api/content').then(r => r.json()).then(data => {
+          if (Array.isArray(data) && data.length > 0) {
+            log(`API fallback — content: ${data.length} items`);
+            setContent(data);
+            localStorage.setItem(STORAGE_KEYS.CONTENT, JSON.stringify(data));
+          }
+        }).catch(() => {});
+      }
+      if (scheduleItems.length === 0) {
+        fetch('/api/schedules').then(r => r.json()).then(data => {
+          if (Array.isArray(data) && data.length > 0) {
+            log(`API fallback — schedules: ${data.length} items`);
+            setSchedules(data);
+            localStorage.setItem(STORAGE_KEYS.SCHEDULES, JSON.stringify(data));
+          }
+        }).catch(() => {});
+      }
+
+      // Always fetch venues from API to get schedule assignments
+      fetch('/api/venues').then(r => r.json()).then(venueData => {
+        if (Array.isArray(venueData) && venueData.length > 0) {
+          const localVenues = localStorage.getItem(STORAGE_KEYS.VENUES);
+          const localVenueCount = localVenues ? JSON.parse(localVenues).length : 0;
+          if (localVenueCount === 0) {
+            log(`API fallback — venues: ${venueData.length} items`);
+            localStorage.setItem(STORAGE_KEYS.VENUES, JSON.stringify(venueData));
+          } else {
+            // Merge: update scheduleId assignments from API venues
+            const localVenuesParsed: Venue[] = JSON.parse(localVenues!);
+            const merged = localVenuesParsed.map(lv => {
+              const apiVenue = venueData.find((av: Venue) => av.id === lv.id);
+              if (!apiVenue) return lv;
+              return {
+                ...lv,
+                screens: lv.screens.map(ls => {
+                  const apiScreen = apiVenue.screens.find((as: ScreenConfig) => as.id === ls.id);
+                  if (apiScreen?.scheduleId && !ls.scheduleId) {
+                    log(`Merging scheduleId ${apiScreen.scheduleId} into screen ${ls.id}`);
+                    return { ...ls, scheduleId: apiScreen.scheduleId };
+                  }
+                  return ls;
+                }),
+              };
+            });
+            localStorage.setItem(STORAGE_KEYS.VENUES, JSON.stringify(merged));
+          }
+          // Re-check screen after venue merge
+          if (sid) {
+            const foundAfterMerge = getScreenById(sid);
+            if (foundAfterMerge) {
+              log(`screen found after venue merge: ${foundAfterMerge.name}, scheduleId: ${foundAfterMerge.scheduleId || 'none'}`);
+              setScreen(foundAfterMerge);
+            }
+          }
+        }
+      }).catch(() => {});
+
+      if (sid) {
+        const found = getScreenById(sid);
+        if (found) {
+          log(`screen found: ${found.name}`);
+          setScreen(found);
+        } else {
+          log(`screen not in localStorage, checking API...`);
+          // Fallback: check server API for screen config
+          fetch('/api/screens')
+            .then(res => res.json())
+            .then((screens: { screenId: string }[]) => {
+              const match = screens.find(s => s.screenId === sid);
+              if (match) {
+                log(`API fallback — screen found, seeding localStorage`);
+                const seeded = ensureScreenExists(sid);
+                setScreen(seeded);
+              } else {
+                log(`API fallback — screen not found either`);
+              }
+            })
+            .catch(() => { log('API screens fetch failed'); });
+        }
+      }
+    } catch (e) { log(`loadData error: ${e}`); }
+    setIsLoading(false);
   }, [sid]);
 
   useEffect(() => {
-    const loadData = () => {
-      try {
-        const storedContent = localStorage.getItem(STORAGE_KEYS.CONTENT);
-        const storedSchedules = localStorage.getItem(STORAGE_KEYS.SCHEDULES);
-        if (storedContent) setContent(JSON.parse(storedContent));
-        if (storedSchedules) setSchedules(JSON.parse(storedSchedules));
-      } catch { /* ignore */ }
-    };
     loadData();
     const interval = setInterval(loadData, 5000);
     return () => clearInterval(interval);
-  }, []);
+  }, [loadData]);
+
+  const handleReconnect = useCallback(() => {
+    setIsReconnecting(true);
+    loadData();
+    setTimeout(() => setIsReconnecting(false), 500);
+  }, [loadData]);
 
   useEffect(() => {
     const timer = setInterval(() => setTick(t => t + 1), 1000);
@@ -110,6 +210,7 @@ export default function ScreenPlayer() {
   if (pauseStartRef.current && pausedAtRef.current > 0) {
     elapsedSec = pausedAtRef.current;
   }
+  elapsedSecRef.current = elapsedSec;
   const rawResult = activeSchedule ? getCurrentItemIndex(activeSchedule, content, elapsedSec) : { index: 0, offset: 0 };
   const scheduleItems = activeSchedule?.items || [];
 
@@ -139,6 +240,14 @@ export default function ScreenPlayer() {
   }, [activeSchedule?.id]);
 
   useEffect(() => {
+    if (activeSchedule) {
+      log(`activeSchedule: "${activeSchedule.name}" (${activeSchedule.items.length} items)`);
+    } else if (sid && schedules.length > 0) {
+      log(`activeSchedule: null (no matching schedule for screen ${sid})`);
+    }
+  }, [activeSchedule, sid, schedules.length]);
+
+  useEffect(() => {
     if (!activeSchedule && scheduleIdRef.current) {
       const stored = localStorage.getItem(STORAGE_KEYS.SCHEDULES);
       if (stored) {
@@ -147,6 +256,7 @@ export default function ScreenPlayer() {
         if (schedule?.mode === 'once' && schedule.status !== 'done') {
           const updated = parsed.map((s: Schedule) => s.id === scheduleIdRef.current ? { ...s, status: 'done' as const, updatedAt: new Date().toISOString() } : s);
           localStorage.setItem(STORAGE_KEYS.SCHEDULES, JSON.stringify(updated));
+          syncToApi('/api/schedules', updated);
           setScheduleDone(true);
         }
       }
@@ -167,17 +277,18 @@ export default function ScreenPlayer() {
         cum += dur;
       }
       if (bounds.length === 0) return;
+      const currentElapsed = elapsedSecRef.current;
       let cur = 0;
       for (let i = 0; i < bounds.length; i++) {
-        if (elapsedSec < bounds[i].cum + bounds[i].dur) { cur = i; break; }
+        if (currentElapsed < bounds[i].cum + bounds[i].dur) { cur = i; break; }
         cur = i;
       }
       if (direction === 'next') {
         const next = cur + 1;
-        if (next < bounds.length) manualOffsetRef.current = bounds[next].cum - elapsedSec;
+        if (next < bounds.length) manualOffsetRef.current = bounds[next].cum - currentElapsed;
       } else {
         const prev = cur - 1;
-        manualOffsetRef.current = (prev >= 0 ? bounds[prev].cum : bounds[0].cum) - elapsedSec;
+        manualOffsetRef.current = (prev >= 0 ? bounds[prev].cum : bounds[0].cum) - currentElapsed;
       }
       prevVisualIndexRef.current = -1;
       skipVersionRef.current += 1;
@@ -220,7 +331,7 @@ export default function ScreenPlayer() {
       window.removeEventListener(resumeEvent, onResume);
       window.removeEventListener(doneEvent, onDone);
     };
-  }, [activeSchedule, scheduleItems, content, elapsedSec, sid]);
+  }, [activeSchedule, scheduleItems, content, sid]);
 
   let visualIndex = rawResult.index;
   let visualOffset = rawResult.offset;
@@ -318,11 +429,11 @@ export default function ScreenPlayer() {
     if (visualItem.type === 'video' && mainVideoRef.current) {
       mainVideoRef.current.src = resolveFilePath(visualItem.filePath);
       mainVideoRef.current.currentTime = visualOffset;
-      mainVideoRef.current.play().catch(() => {});
+      playPromiseRef.current = mainVideoRef.current.play().catch(() => {});
     } else if (visualItem.type === 'audio' && mainAudioRef.current) {
       mainAudioRef.current.src = resolveFilePath(visualItem.filePath);
       mainAudioRef.current.currentTime = visualOffset;
-      mainAudioRef.current.play().catch(() => {});
+      playPromiseRef.current = mainAudioRef.current.play().catch(() => {});
     }
     setProgress(0);
   }, [visualIndex, isPlaying, visualItem, mediaError, activeSchedule, skipVersionRef.current]);
@@ -332,15 +443,30 @@ export default function ScreenPlayer() {
       if (!pauseStartRef.current) pauseStartRef.current = Date.now();
       if (mainVideoRef.current) pausedAtRef.current = mainVideoRef.current.currentTime;
       else if (mainAudioRef.current) pausedAtRef.current = mainAudioRef.current.currentTime;
-      if (mainVideoRef.current) mainVideoRef.current.pause();
-      if (mainAudioRef.current) mainAudioRef.current.pause();
-      if (bgAudioRef.current) bgAudioRef.current.pause();
+      // Wait for any pending play() before pausing to avoid race condition
+      const pause = () => {
+        if (mainVideoRef.current) mainVideoRef.current.pause();
+        if (mainAudioRef.current) mainAudioRef.current.pause();
+        if (bgAudioRef.current) bgAudioRef.current.pause();
+      };
+      if (playPromiseRef.current) {
+        playPromiseRef.current.then(pause).catch(pause);
+      } else {
+        pause();
+      }
     } else {
       pauseStartRef.current = null;
       pausedAtRef.current = 0;
-      if (mainVideoRef.current && visualItem?.type === 'video') mainVideoRef.current.play().catch(() => {});
-      if (mainAudioRef.current && visualItem?.type === 'audio') mainAudioRef.current.play().catch(() => {});
-      if (bgAudioRef.current && bgAudioIdRef.current) bgAudioRef.current.play().catch(() => {});
+      // Only play if actually paused (avoid double-play)
+      if (mainVideoRef.current && visualItem?.type === 'video' && mainVideoRef.current.paused) {
+        playPromiseRef.current = mainVideoRef.current.play().catch(() => {});
+      }
+      if (mainAudioRef.current && visualItem?.type === 'audio' && mainAudioRef.current.paused) {
+        playPromiseRef.current = mainAudioRef.current.play().catch(() => {});
+      }
+      if (bgAudioRef.current && bgAudioIdRef.current && bgAudioRef.current.paused) {
+        bgAudioRef.current.play().catch(() => {});
+      }
     }
     if (sid) writeScreenPlayerState(sid, { isPlaying, manualOffset: manualOffsetRef.current, pauseStart: pauseStartRef.current });
   }, [isPlaying, visualItem]);
@@ -351,10 +477,23 @@ export default function ScreenPlayer() {
     setProgress(Math.min(pct, 100));
   }, [tick, isPlaying, visualItem]);
 
+  const isElectron = !!(window as any).electronAPI?.isElectron;
+
   const toggleFullscreen = async () => {
-    if (!containerRef.current) return;
-    if (!document.fullscreenElement) { await containerRef.current.requestFullscreen(); setIsFullscreen(true); }
-    else { await document.exitFullscreen(); setIsFullscreen(false); }
+    if (isElectron && (window as any).electronAPI?.toggleFullscreen) {
+      await (window as any).electronAPI.toggleFullscreen();
+      const fs = await (window as any).electronAPI.isFullscreen();
+      setIsFullscreen(fs);
+    } else if (containerRef.current) {
+      if (!document.fullscreenElement) { await containerRef.current.requestFullscreen(); setIsFullscreen(true); }
+      else { await document.exitFullscreen(); setIsFullscreen(false); }
+    }
+  };
+
+  const handleMinimize = async () => {
+    if (isElectron && (window as any).electronAPI?.minimize) {
+      await (window as any).electronAPI.minimize();
+    }
   };
 
   const handleLockToggle = () => {
@@ -439,6 +578,19 @@ export default function ScreenPlayer() {
     );
   }
 
+  if (screen === null && !isLoading) {
+    return (
+      <div className="min-h-screen bg-black flex items-center justify-center">
+        <div className="text-center">
+          <AlertCircle className="w-16 h-16 text-red-400 mx-auto mb-4" />
+          <p className="text-gray-400 mb-2">Screen not found</p>
+          <p className="text-gray-600 text-sm mb-2">No screen with ID: <code className="text-gray-500">{sid}</code></p>
+          <p className="text-gray-600 text-xs">Check the screen ID in CMS → Locations.</p>
+        </div>
+      </div>
+    );
+  }
+
   if (scheduleDone) {
     return (
       <div className="min-h-screen bg-black flex items-center justify-center">
@@ -477,7 +629,12 @@ export default function ScreenPlayer() {
           <Monitor className="w-16 h-16 text-gray-600 mx-auto mb-4" />
           <p className="text-gray-400 mb-2">No schedule assigned to this screen</p>
           {screen && <p className="text-gray-500 text-sm mb-4">Screen: {screen.name}</p>}
-          <p className="text-gray-600 text-xs">Assign a schedule in Locations → Screen settings.</p>
+          <p className="text-gray-600 text-xs mb-6">Assign a schedule in Locations → Screen settings.</p>
+          <button onClick={handleReconnect} disabled={isReconnecting}
+            className="inline-flex items-center gap-2 px-4 py-2 bg-white/10 hover:bg-white/20 disabled:opacity-50 text-white rounded-lg text-sm font-medium transition-colors">
+            <RefreshCw className={cn("w-4 h-4", isReconnecting && "animate-spin")} />
+            {isReconnecting ? 'Reconnecting...' : 'Reconnect'}
+          </button>
         </div>
       </div>
     );
@@ -557,7 +714,7 @@ export default function ScreenPlayer() {
               </div>
             </div>
             <div className="flex items-center gap-3">
-              <button onClick={() => setIsPlaying(!isPlaying)} className="p-3 bg-white/10 hover:bg-white/20 rounded-full text-white transition-colors">
+              <button onClick={() => setIsPlaying(prev => !prev)} className="p-3 bg-white/10 hover:bg-white/20 rounded-full text-white transition-colors">
                 {isPlaying ? <Pause className="w-6 h-6" /> : <Play className="w-6 h-6" />}
               </button>
               <button onClick={() => setIsMuted(!isMuted)} className={cn("p-2 text-white hover:text-secondary transition-colors relative", bgAudioLabel && isMuted && "animate-pulse text-secondary")}>
@@ -569,6 +726,11 @@ export default function ScreenPlayer() {
               <button onClick={toggleFullscreen} className="p-2 text-white hover:text-secondary transition-colors">
                 {isFullscreen ? <Minimize className="w-5 h-5" /> : <Maximize className="w-5 h-5" />}
               </button>
+              {isElectron && (
+                <button onClick={handleMinimize} className="p-2 text-white hover:text-secondary transition-colors" title="Minimize">
+                  <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><line x1="5" y1="12" x2="19" y2="12" /></svg>
+                </button>
+              )}
             </div>
           </div>
         </div>

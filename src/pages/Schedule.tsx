@@ -6,22 +6,26 @@ import {
   Edit,
   Trash2,
   ChevronRight,
+  ChevronLeft,
+  ChevronDown,
   Clock,
   Film,
   CheckCircle2,
   CheckSquare,
   Calendar,
+  List,
   RotateCcw,
   X,
   Monitor,
   Check,
   ChevronsUpDown,
+  AlertTriangle,
 } from "lucide-react";
 import { cn } from "../lib/utils";
 import { useNavigate } from "react-router-dom";
 import { createPortal } from "react-dom";
 import { Pagination } from "../components/Pagination";
-import { STORAGE_KEYS, getActivities, addActivity, getActiveSchedule, getScheduleTotalDuration, generateId, getTimestamp, getAllScreens, assignScheduleToScreen } from "../lib/storage";
+import { STORAGE_KEYS, getActivities, addActivity, getActiveSchedule, getScheduleTotalDuration, generateId, getTimestamp, getAllScreens, assignScheduleToScreen, getActiveScheduleForScreen, getScreenPlayerState } from "../lib/storage";
 import type { Schedule, LocalContent, ScheduleStatus, ScreenConfig } from "../types";
 
 function toDatetimeLocal(isoString: string): string {
@@ -56,7 +60,7 @@ export default function Schedule() {
   const [currentPage, setCurrentPage] = useState(1);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
   const [sortOrder, setSortOrder] = useState<"recent" | "latest" | "next">("latest");
-  const [statusFilter, setStatusFilter] = useState<"all" | ScheduleStatus>("all");
+  const [statusFilter, setStatusFilter] = useState<ScheduleStatus[]>([]);
   const [selectedSchedules, setSelectedSchedules] = useState<string[]>([]);
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState<string | 'bulk' | null>(null);
   const [showChecklist, setShowChecklist] = useState(false);
@@ -70,6 +74,15 @@ export default function Schedule() {
   const [screens, setScreens] = useState<ScreenConfig[]>([]);
   const [recreateScreenIds, setRecreateScreenIds] = useState<string[]>(['screen-default']);
   const [showRecreateScreenDropdown, setShowRecreateScreenDropdown] = useState(false);
+  const [activeScreenWarnings, setActiveScreenWarnings] = useState<{ id: string; name: string; scheduleName: string }[] | null>(null);
+  const [pendingRecreate, setPendingRecreate] = useState<{ newSchedule: Schedule } | null>(null);
+  const [viewMode, setViewMode] = useState<'list' | 'day'>('list');
+  const [selectedDate, setSelectedDate] = useState(() => new Date().toISOString().split('T')[0]);
+  const [screenFilter, setScreenFilter] = useState<string[]>([]);
+  const [showStatusDropdown, setShowStatusDropdown] = useState(false);
+  const [showScreenDropdown, setShowScreenDropdown] = useState(false);
+  const statusDropdownRef = useRef<HTMLDivElement>(null);
+  const screenDropdownRef = useRef<HTMLDivElement>(null);
   const recreateScreenDropdownRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -77,6 +90,12 @@ export default function Schedule() {
     const handleClickOutside = (e: MouseEvent) => {
       if (recreateScreenDropdownRef.current && !recreateScreenDropdownRef.current.contains(e.target as Node)) {
         setShowRecreateScreenDropdown(false);
+      }
+      if (statusDropdownRef.current && !statusDropdownRef.current.contains(e.target as Node)) {
+        setShowStatusDropdown(false);
+      }
+      if (screenDropdownRef.current && !screenDropdownRef.current.contains(e.target as Node)) {
+        setShowScreenDropdown(false);
       }
     };
     document.addEventListener('mousedown', handleClickOutside);
@@ -112,8 +131,12 @@ export default function Schedule() {
   const sortedSchedules = [...schedules]
     .filter((s) => s.name.toLowerCase().includes(search.toLowerCase()))
     .filter((s) => {
-      if (statusFilter === 'all') return true;
-      return getEffectiveStatus(s) === statusFilter;
+      if (statusFilter.length === 0) return true;
+      return statusFilter.includes(getEffectiveStatus(s));
+    })
+    .filter((s) => {
+      if (screenFilter.length === 0) return true;
+      return screenFilter.some(id => screens.some(sc => sc.id === id && sc.scheduleId === s.id));
     })
     .sort((a, b) => {
       if (sortOrder === 'next') {
@@ -196,6 +219,32 @@ export default function Schedule() {
       createdAt: getTimestamp(),
       updatedAt: getTimestamp(),
     };
+
+    const screenIdsToAssign = recreateScreenIds.length > 0 ? recreateScreenIds : ['screen-default'];
+    const warnings: { id: string; name: string; scheduleName: string }[] = [];
+    for (const screenId of screenIdsToAssign) {
+      const screenState = getScreenPlayerState(screenId);
+      const isOnline = screenState && (Date.now() - (screenState as any).timestamp) < 30000;
+      const isPlaying = isOnline && screenState?.isPlaying !== false;
+      if (isPlaying) {
+        const activeSchedule = getActiveScheduleForScreen(schedules, content, screenId);
+        if (activeSchedule) {
+          const screenName = screens.find(s => s.id === screenId)?.name || screenId;
+          warnings.push({ id: screenId, name: screenName, scheduleName: activeSchedule.name });
+        }
+      }
+    }
+
+    if (warnings.length > 0) {
+      setActiveScreenWarnings(warnings);
+      setPendingRecreate({ newSchedule });
+      return;
+    }
+
+    performRecreate(newSchedule);
+  };
+
+  const performRecreate = (newSchedule: Schedule) => {
     const updated = [...schedules, newSchedule];
     saveSchedulesToStorage(updated);
     const screenIdsToAssign = recreateScreenIds.length > 0 ? recreateScreenIds : ['screen-default'];
@@ -210,10 +259,35 @@ export default function Schedule() {
     setShowRecreateScreenDropdown(false);
   };
 
+  const confirmActiveScreenRecreate = () => {
+    if (!pendingRecreate) return;
+    const { newSchedule } = pendingRecreate;
+    setActiveScreenWarnings(null);
+    setPendingRecreate(null);
+    performRecreate(newSchedule);
+  };
+
   return (
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div className="flex items-center gap-3">
+          <div className="flex items-center gap-1">
+            <button
+              onClick={() => setViewMode('list')}
+              className={cn("p-2 rounded-lg transition-colors", viewMode === 'list' ? "text-primary bg-primary/10" : "text-gray-400 hover:text-gray-600 hover:bg-gray-50")}
+              title="List view"
+            >
+              <List className="w-4 h-4" />
+            </button>
+            <div className="w-px h-5 bg-gray-200" />
+            <button
+              onClick={() => setViewMode('day')}
+              className={cn("p-2 rounded-lg transition-colors", viewMode === 'day' ? "text-primary bg-primary/10" : "text-gray-400 hover:text-gray-600 hover:bg-gray-50")}
+              title="Day view"
+            >
+              <Calendar className="w-4 h-4" />
+            </button>
+          </div>
           <div className="relative">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
             <input
@@ -233,16 +307,44 @@ export default function Schedule() {
             <option value="recent">Oldest First</option>
             <option value="next">Next Play</option>
           </select>
-          <select
-            className="bg-white border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary"
-            value={statusFilter}
-            onChange={(e) => setStatusFilter(e.target.value as "all" | ScheduleStatus)}
-          >
-            <option value="all">All Status</option>
-            <option value="playing">Now Playing</option>
-            <option value="unplayed">Ready</option>
-            <option value="done">Done</option>
-          </select>
+          <div className="relative" ref={statusDropdownRef}>
+            <button onClick={() => setShowStatusDropdown(!showStatusDropdown)}
+              className={cn("bg-white border rounded-lg px-3 py-2 text-sm flex items-center gap-2 transition-colors", statusFilter.length > 0 ? "border-primary text-primary" : "border-gray-200 text-gray-600")}>
+              Status{statusFilter.length > 0 && ` (${statusFilter.length})`}
+              <ChevronDown className="w-3.5 h-3.5" />
+            </button>
+            {showStatusDropdown && (
+              <div className="absolute left-0 mt-1 bg-white rounded-xl shadow-xl border border-gray-100 py-2 w-40 z-50">
+                {(['playing', 'unplayed', 'done'] as ScheduleStatus[]).map(status => (
+                  <label key={status} className="flex items-center gap-2 px-3 py-1.5 hover:bg-gray-50 cursor-pointer">
+                    <input type="checkbox" className="rounded border-gray-300 text-primary focus:ring-primary"
+                      checked={statusFilter.includes(status)}
+                      onChange={() => setStatusFilter(prev => prev.includes(status) ? prev.filter(s => s !== status) : [...prev, status])} />
+                    <span className="text-sm text-gray-700 capitalize">{status === 'playing' ? 'Now Playing' : status === 'unplayed' ? 'Ready' : status}</span>
+                  </label>
+                ))}
+              </div>
+            )}
+          </div>
+          <div className="relative" ref={screenDropdownRef}>
+            <button onClick={() => setShowScreenDropdown(!showScreenDropdown)}
+              className={cn("bg-white border rounded-lg px-3 py-2 text-sm flex items-center gap-2 transition-colors", screenFilter.length > 0 ? "border-primary text-primary" : "border-gray-200 text-gray-600")}>
+              Screens{screenFilter.length > 0 && ` (${screenFilter.length})`}
+              <ChevronDown className="w-3.5 h-3.5" />
+            </button>
+            {showScreenDropdown && (
+              <div className="absolute left-0 mt-1 bg-white rounded-xl shadow-xl border border-gray-100 py-2 w-44 z-50">
+                {screens.map(s => (
+                  <label key={s.id} className="flex items-center gap-2 px-3 py-1.5 hover:bg-gray-50 cursor-pointer">
+                    <input type="checkbox" className="rounded border-gray-300 text-primary focus:ring-primary"
+                      checked={screenFilter.includes(s.id)}
+                      onChange={() => setScreenFilter(prev => prev.includes(s.id) ? prev.filter(id => id !== s.id) : [...prev, s.id])} />
+                    <span className="text-sm text-gray-700">{s.name}</span>
+                  </label>
+                ))}
+              </div>
+            )}
+          </div>
         </div>
 
         <div className="flex items-center gap-3">
@@ -296,6 +398,116 @@ export default function Schedule() {
             <Plus className="w-4 h-4" />
             Create Schedule
           </button>
+        </div>
+      ) : viewMode === 'day' ? (
+        <div className="card p-6">
+          {(() => {
+            const isToday = selectedDate === new Date().toISOString().split('T')[0];
+            return (
+              <>
+                <div className="flex items-center justify-between mb-2">
+                  <button onClick={() => { const d = new Date(selectedDate); d.setDate(d.getDate() - 1); setSelectedDate(d.toISOString().split('T')[0]); }}
+                    className="p-2 text-gray-400 hover:text-primary rounded-lg hover:bg-gray-100 transition-colors">
+                    <ChevronLeft className="w-5 h-5" />
+                  </button>
+                  <h3 className={cn("font-heading font-semibold", isToday ? "text-primary" : "text-gray-900")}>
+                    {new Date(selectedDate + 'T00:00:00').toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' })}
+                  </h3>
+                  <button onClick={() => { const d = new Date(selectedDate); d.setDate(d.getDate() + 1); setSelectedDate(d.toISOString().split('T')[0]); }}
+                    className="p-2 text-gray-400 hover:text-primary rounded-lg hover:bg-gray-100 transition-colors">
+                    <ChevronRight className="w-5 h-5" />
+                  </button>
+                </div>
+                <div className="flex items-center justify-center mb-4">
+                  <input
+                    type="date"
+                    value={selectedDate}
+                    onChange={(e) => setSelectedDate(e.target.value)}
+                    className="bg-transparent border-0 p-0 text-sm text-gray-400 hover:text-primary cursor-pointer focus:outline-none focus:text-primary [&::-webkit-calendar-picker-indicator]:cursor-pointer [&::-webkit-calendar-picker-indicator]:opacity-50 hover:[&::-webkit-calendar-picker-indicator]:opacity-100"
+                  />
+                </div>
+              </>
+            );
+          })()}
+          <div className="max-h-[60vh] overflow-y-auto pr-2">
+            {(() => {
+              const daySchedulesAll = sortedSchedules.filter(s => {
+                const start = new Date(s.startTime);
+                return start.toISOString().split('T')[0] === selectedDate;
+              });
+              let startHour = 8;
+              let endHour = 20;
+              if (daySchedulesAll.length > 0) {
+                const hours = daySchedulesAll.map(s => new Date(s.startTime).getHours());
+                startHour = Math.max(0, Math.min(...hours) - 2);
+                endHour = Math.min(23, Math.max(...hours) + 3);
+              }
+              const hours = Array.from({ length: endHour - startHour + 1 }, (_, i) => startHour + i);
+              return hours.map(hour => {
+                const daySchedules = daySchedulesAll.filter(s => new Date(s.startTime).getHours() === hour);
+                return (
+                  <div key={hour} className="flex gap-4 min-h-[48px] group">
+                    <div className="w-14 flex-shrink-0 text-right pt-0.5">
+                      <span className="text-xs font-mono text-gray-400 group-hover:text-gray-600 transition-colors">{hour.toString().padStart(2, '0')}:00</span>
+                    </div>
+                    <div className="flex-1 border-t border-gray-100 relative min-h-[48px]">
+                      {daySchedules.length === 0 ? (
+                        <div className="h-full" />
+                      ) : (
+                        <div className="space-y-2 py-2">
+                          {daySchedules.map(schedule => {
+                            const status = getEffectiveStatus(schedule);
+                            const assignedScreens = screens.filter(s => s.scheduleId === schedule.id);
+                            return (
+                              <div key={schedule.id} onClick={() => {
+                                if (schedule.status !== 'done') {
+                                  localStorage.setItem('editing_schedule_id', schedule.id);
+                                  navigate('/schedule/builder');
+                                }
+                              }}
+                                className={cn("p-3 rounded-lg border transition-all cursor-pointer",
+                                  status === 'playing' ? "bg-primary/10 border-primary/30 hover:bg-primary/15" :
+                                  status === 'done' ? "bg-gray-50 border-gray-200 opacity-60" :
+                                  "bg-white border-gray-200 hover:border-primary/30 hover:shadow-sm"
+                                )}>
+                                <div className="flex items-center justify-between mb-1">
+                                  <div className="flex items-center gap-2 min-w-0">
+                                    <span className="font-medium text-sm text-gray-900 truncate">{schedule.name}</span>
+                                    {assignedScreens.length === 1 && (
+                                      <span className="inline-flex items-center gap-1 px-1.5 py-0.5 bg-gray-100 text-gray-600 rounded text-[10px] font-medium flex-shrink-0">
+                                        <Monitor className="w-2.5 h-2.5" />{assignedScreens[0].name}
+                                      </span>
+                                    )}
+                                    {assignedScreens.length > 1 && (
+                                      <span className="inline-flex items-center gap-1 px-1.5 py-0.5 bg-gray-100 text-gray-600 rounded text-[10px] font-medium flex-shrink-0">
+                                        <Monitor className="w-2.5 h-2.5" />{assignedScreens.length} screens
+                                      </span>
+                                    )}
+                                  </div>
+                                  <span className={cn("px-1.5 py-0.5 rounded-full text-[10px] font-bold uppercase flex-shrink-0",
+                                    status === 'playing' ? "bg-secondary/30 text-primary-dark" :
+                                    status === 'done' ? "bg-gray-100 text-gray-400" :
+                                    "bg-blue-50 text-blue-600"
+                                  )}>
+                                    {status === 'playing' ? 'Now' : status === 'done' ? 'Done' : 'Ready'}
+                                  </span>
+                                </div>
+                                <div className="flex items-center gap-3 text-xs text-gray-500">
+                                  <span className="flex items-center gap-1"><Film className="w-3 h-3" />{schedule.items.length} items</span>
+                                  <span className="flex items-center gap-1"><Clock className="w-3 h-3" />{formatElapsed(getTotalDuration(schedule))}</span>
+                                  <span className="capitalize">{schedule.mode}</span>
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                );
+              });
+            })()}
+          </div>
         </div>
       ) : (
         <>
@@ -642,6 +854,27 @@ export default function Schedule() {
           </div>
         </div>,
         document.body
+      )}
+
+      {activeScreenWarnings && createPortal(
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-gray-900/50 backdrop-blur-sm animate-in fade-in">
+          <div className="bg-white rounded-xl shadow-2xl w-full max-w-md overflow-hidden flex flex-col animate-in slide-in-from-bottom-4 text-center p-6">
+            <div className="w-12 h-12 rounded-full bg-yellow-50 flex items-center justify-center mx-auto mb-4 border border-yellow-100"><AlertTriangle className="w-6 h-6 text-yellow-500" /></div>
+            <h3 className="font-heading font-semibold text-lg text-gray-900 mb-2">Screens Currently Playing</h3>
+            <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3 mb-4 text-left space-y-2">
+              {activeScreenWarnings.map(w => (
+                <p key={w.id} className="text-xs font-medium text-yellow-800">
+                  <span className="font-semibold">{w.name}</span> is playing "<span className="font-semibold">{w.scheduleName}</span>"
+                </p>
+              ))}
+            </div>
+            <p className="text-gray-500 text-sm mb-6">Assigning a new schedule will interrupt playback on these screens. Continue?</p>
+            <div className="flex items-center gap-3 w-full">
+              <button onClick={() => { setActiveScreenWarnings(null); setPendingRecreate(null); }} className="flex-1 py-2.5 bg-white border border-gray-200 hover:bg-gray-50 text-gray-800 rounded-lg text-sm font-medium transition-colors cursor-pointer">Cancel</button>
+              <button onClick={confirmActiveScreenRecreate} className="flex-1 py-2.5 bg-primary hover:bg-primary-dark text-white rounded-lg text-sm font-medium transition-colors cursor-pointer shadow-sm">Continue</button>
+            </div>
+          </div>
+        </div>, document.body
       )}
     </div>
   );

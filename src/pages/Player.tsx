@@ -1,7 +1,7 @@
 ﻿import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { Play, Pause, Maximize, Minimize, Volume2, VolumeX, Film, AlertCircle, Clock, Music, CheckCircle, Lock, LockOpen, Keyboard } from 'lucide-react';
+import { Play, Pause, Maximize, Minimize, Volume2, VolumeX, Film, AlertCircle, Clock, Music, CheckCircle, Lock, LockOpen, Keyboard, RefreshCw } from 'lucide-react';
 import { cn } from '../lib/utils';
-import { STORAGE_KEYS, resolveFilePath, getActiveSchedule, getUpcomingSchedule, getCurrentItemIndex, getScheduleElapsed, getScheduleStartTime, getThumbnailUrl, writePlayerState, getSettings } from '../lib/storage';
+import { STORAGE_KEYS, resolveFilePath, getActiveSchedule, getUpcomingSchedule, getCurrentItemIndex, getScheduleElapsed, getScheduleStartTime, getThumbnailUrl, writePlayerState, getSettings, syncToApi } from '../lib/storage';
 import type { LocalContent, Schedule, ScheduleItem } from '../types';
 
 const SKIP_DELAY = 5;
@@ -17,6 +17,15 @@ function formatCountdown(totalSec: number): string {
   if (m > 0) parts.push(`${m}m`);
   if (s > 0 || parts.length === 0) parts.push(`${s}s`);
   return parts.join(' ');
+}
+
+function formatTime(seconds: number): string {
+  const s = Math.floor(seconds);
+  const h = Math.floor(s / 3600);
+  const m = Math.floor((s % 3600) / 60);
+  const sec = s % 60;
+  if (h > 0) return `${h}:${m.toString().padStart(2, '0')}:${sec.toString().padStart(2, '0')}`;
+  return `${m}:${sec.toString().padStart(2, '0')}`;
 }
 
 function isOverlay(item: ScheduleItem | undefined, allContent: LocalContent[], index: number, items: ScheduleItem[]): boolean {
@@ -50,6 +59,7 @@ export default function Player() {
   const [scheduleDone, setScheduleDone] = useState(false);
   const [controlsLocked, setControlsLocked] = useState(false);
   const [showShortcuts, setShowShortcuts] = useState(false);
+  const [isReconnecting, setIsReconnecting] = useState(false);
 
   const mainVideoRef = useRef<HTMLVideoElement | null>(null);
   const mainAudioRef = useRef<HTMLAudioElement | null>(null);
@@ -61,26 +71,35 @@ export default function Player() {
   const bgAudioIdRef = useRef<string | null>(null);
   const bgAudioStartRef = useRef<number>(0);
   const bgAudioDurationRef = useRef<number>(0);
+  const playPromiseRef = useRef<Promise<void> | null>(null);
   const scheduleIdRef = useRef<string | null>(null);
   const manualOffsetRef = useRef<number>(0);
   const skipVersionRef = useRef(0);
   const pauseStartRef = useRef<number | null>(null);
   const pausedAtRef = useRef<number>(0);
   const controlsLockedRef = useRef(false);
+  const elapsedSecRef = useRef(0);
+
+  const loadData = useCallback(() => {
+    try {
+      const storedContent = localStorage.getItem(STORAGE_KEYS.CONTENT);
+      const storedSchedules = localStorage.getItem(STORAGE_KEYS.SCHEDULES);
+      if (storedContent) setContent(JSON.parse(storedContent));
+      if (storedSchedules) setSchedules(JSON.parse(storedSchedules));
+    } catch { /* ignore */ }
+  }, []);
 
   useEffect(() => {
-    const loadData = () => {
-      try {
-        const storedContent = localStorage.getItem(STORAGE_KEYS.CONTENT);
-        const storedSchedules = localStorage.getItem(STORAGE_KEYS.SCHEDULES);
-        if (storedContent) setContent(JSON.parse(storedContent));
-        if (storedSchedules) setSchedules(JSON.parse(storedSchedules));
-      } catch { /* ignore */ }
-    };
     loadData();
     const interval = setInterval(loadData, 5000);
     return () => clearInterval(interval);
-  }, []);
+  }, [loadData]);
+
+  const handleReconnect = useCallback(() => {
+    setIsReconnecting(true);
+    loadData();
+    setTimeout(() => setIsReconnecting(false), 500);
+  }, [loadData]);
 
   useEffect(() => {
     const timer = setInterval(() => setTick(t => t + 1), 1000);
@@ -94,6 +113,7 @@ export default function Player() {
   if (pauseStartRef.current && pausedAtRef.current > 0) {
     elapsedSec = pausedAtRef.current;
   }
+  elapsedSecRef.current = elapsedSec;
   const rawResult = activeSchedule ? getCurrentItemIndex(activeSchedule, content, elapsedSec) : { index: 0, offset: 0 };
   const scheduleItems = activeSchedule?.items || [];
 
@@ -114,6 +134,7 @@ export default function Player() {
     if (activeSchedule && scheduleIdRef.current !== activeSchedule.id) {
       scheduleIdRef.current = activeSchedule.id;
       manualOffsetRef.current = 0;
+      prevVisualIndexRef.current = -1;
       if (!controlsLockedRef.current) {
         setShowControls(true);
         if (controlsTimeoutRef.current) clearTimeout(controlsTimeoutRef.current);
@@ -131,6 +152,7 @@ export default function Player() {
         if (schedule?.mode === 'once' && schedule.status !== 'done') {
           const updated = parsed.map((s: Schedule) => s.id === scheduleIdRef.current ? { ...s, status: 'done' as const, updatedAt: new Date().toISOString() } : s);
           localStorage.setItem(STORAGE_KEYS.SCHEDULES, JSON.stringify(updated));
+          syncToApi('/api/schedules', updated);
           setScheduleDone(true);
         }
       }
@@ -153,23 +175,24 @@ export default function Player() {
       }
       if (bounds.length === 0) return;
 
+      const currentElapsed = elapsedSecRef.current;
       let cur = 0;
       for (let i = 0; i < bounds.length; i++) {
-        if (elapsedSec < bounds[i].cum + bounds[i].dur) { cur = i; break; }
+        if (currentElapsed < bounds[i].cum + bounds[i].dur) { cur = i; break; }
         cur = i;
       }
 
       if (direction === 'next') {
         const next = cur + 1;
         if (next < bounds.length) {
-          manualOffsetRef.current = bounds[next].cum - elapsedSec;
+          manualOffsetRef.current = bounds[next].cum - currentElapsed;
         }
       } else {
         const prev = cur - 1;
         if (prev >= 0) {
-          manualOffsetRef.current = bounds[prev].cum - elapsedSec;
+          manualOffsetRef.current = bounds[prev].cum - currentElapsed;
         } else {
-          manualOffsetRef.current = bounds[0].cum - elapsedSec;
+          manualOffsetRef.current = bounds[0].cum - currentElapsed;
         }
       }
       prevVisualIndexRef.current = -1;
@@ -208,7 +231,7 @@ export default function Player() {
       window.removeEventListener('resume-signal', onResume);
       window.removeEventListener('done-signal', onDone);
     };
-  }, [activeSchedule, scheduleItems, content, elapsedSec]);
+  }, [activeSchedule, scheduleItems, content]);
 
   let visualIndex = rawResult.index;
   let visualOffset = rawResult.offset;
@@ -337,11 +360,11 @@ export default function Player() {
     if (visualItem.type === 'video' && mainVideoRef.current) {
       mainVideoRef.current.src = resolveFilePath(visualItem.filePath);
       mainVideoRef.current.currentTime = visualOffset;
-      mainVideoRef.current.play().catch(() => {});
+      playPromiseRef.current = mainVideoRef.current.play().catch(() => {});
     } else if (visualItem.type === 'audio' && mainAudioRef.current) {
       mainAudioRef.current.src = resolveFilePath(visualItem.filePath);
       mainAudioRef.current.currentTime = visualOffset;
-      mainAudioRef.current.play().catch(() => {});
+      playPromiseRef.current = mainAudioRef.current.play().catch(() => {});
     }
     setProgress(0);
   }, [visualIndex, isPlaying, visualItem, mediaError, activeSchedule, skipVersionRef.current]);
@@ -351,15 +374,30 @@ export default function Player() {
       if (!pauseStartRef.current) pauseStartRef.current = Date.now();
       if (mainVideoRef.current) pausedAtRef.current = mainVideoRef.current.currentTime;
       else if (mainAudioRef.current) pausedAtRef.current = mainAudioRef.current.currentTime;
-      if (mainVideoRef.current) mainVideoRef.current.pause();
-      if (mainAudioRef.current) mainAudioRef.current.pause();
-      if (bgAudioRef.current) bgAudioRef.current.pause();
+      // Wait for any pending play() before pausing to avoid race condition
+      const pause = () => {
+        if (mainVideoRef.current) mainVideoRef.current.pause();
+        if (mainAudioRef.current) mainAudioRef.current.pause();
+        if (bgAudioRef.current) bgAudioRef.current.pause();
+      };
+      if (playPromiseRef.current) {
+        playPromiseRef.current.then(pause).catch(pause);
+      } else {
+        pause();
+      }
     } else {
       pauseStartRef.current = null;
       pausedAtRef.current = 0;
-      if (mainVideoRef.current && visualItem?.type === 'video') mainVideoRef.current.play().catch(() => {});
-      if (mainAudioRef.current && visualItem?.type === 'audio') mainAudioRef.current.play().catch(() => {});
-      if (bgAudioRef.current && bgAudioIdRef.current) bgAudioRef.current.play().catch(() => {});
+      // Only play if actually paused (avoid double-play)
+      if (mainVideoRef.current && visualItem?.type === 'video' && mainVideoRef.current.paused) {
+        playPromiseRef.current = mainVideoRef.current.play().catch(() => {});
+      }
+      if (mainAudioRef.current && visualItem?.type === 'audio' && mainAudioRef.current.paused) {
+        playPromiseRef.current = mainAudioRef.current.play().catch(() => {});
+      }
+      if (bgAudioRef.current && bgAudioIdRef.current && bgAudioRef.current.paused) {
+        bgAudioRef.current.play().catch(() => {});
+      }
     }
     writePlayerState({ isPlaying, manualOffset: manualOffsetRef.current, pauseStart: pauseStartRef.current });
   }, [isPlaying, visualItem]);
@@ -370,14 +408,27 @@ export default function Player() {
     setProgress(Math.min(pct, 100));
   }, [tick, isPlaying, visualItem]);
 
+  const isElectron = !!(window as any).electronAPI?.isElectron;
+
   const toggleFullscreen = async () => {
-    if (!containerRef.current) return;
-    if (!document.fullscreenElement) {
-      await containerRef.current.requestFullscreen();
-      setIsFullscreen(true);
-    } else {
-      await document.exitFullscreen();
-      setIsFullscreen(false);
+    if (isElectron && (window as any).electronAPI?.toggleFullscreen) {
+      await (window as any).electronAPI.toggleFullscreen();
+      const fs = await (window as any).electronAPI.isFullscreen();
+      setIsFullscreen(fs);
+    } else if (containerRef.current) {
+      if (!document.fullscreenElement) {
+        await containerRef.current.requestFullscreen();
+        setIsFullscreen(true);
+      } else {
+        await document.exitFullscreen();
+        setIsFullscreen(false);
+      }
+    }
+  };
+
+  const handleMinimize = async () => {
+    if (isElectron && (window as any).electronAPI?.minimize) {
+      await (window as any).electronAPI.minimize();
     }
   };
 
@@ -500,6 +551,13 @@ export default function Player() {
           <Play className="w-16 h-16 text-gray-600 mx-auto mb-4" />
           <p className="text-gray-400 mb-4">No schedules found</p>
           <a href="/schedule" className="text-secondary hover:underline">Create a Schedule</a>
+          <div className="mt-6">
+            <button onClick={handleReconnect} disabled={isReconnecting}
+              className="inline-flex items-center gap-2 px-4 py-2 bg-white/10 hover:bg-white/20 disabled:opacity-50 text-white rounded-lg text-sm font-medium transition-colors">
+              <RefreshCw className={cn("w-4 h-4", isReconnecting && "animate-spin")} />
+              {isReconnecting ? 'Reconnecting...' : 'Reconnect'}
+            </button>
+          </div>
         </div>
       </div>
     );
@@ -570,9 +628,11 @@ export default function Player() {
       <div className={cn("absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 via-black/40 to-transparent p-6 transition-opacity duration-300", showControls ? "opacity-100" : "opacity-0")}>
         <div className="max-w-4xl mx-auto">
           <div className="flex items-center gap-4 mb-4">
+            <span className="text-xs text-gray-400 font-mono w-12 text-right">{formatTime(visualOffset)}</span>
             <div className="flex-1 bg-gray-700 rounded-full h-1.5 overflow-hidden cursor-pointer" onClick={handleSeek}>
               <div className="bg-primary h-full rounded-full transition-all duration-100 pointer-events-none" style={{ width: Math.min(progress, 100) + '%' }} />
             </div>
+            <span className="text-xs text-gray-400 font-mono w-12">{formatTime(visualItemDuration)}</span>
             <span className="text-xs text-gray-400 font-mono w-16 text-right">{visualIndex + 1} / {visualItemCount}</span>
           </div>
           <div className="flex items-center justify-between">
@@ -586,7 +646,7 @@ export default function Player() {
               </div>
             </div>
             <div className="flex items-center gap-3">
-              <button onClick={() => setIsPlaying(!isPlaying)} className="p-3 bg-white/10 hover:bg-white/20 rounded-full text-white transition-colors">
+              <button onClick={() => setIsPlaying(prev => !prev)} className="p-3 bg-white/10 hover:bg-white/20 rounded-full text-white transition-colors">
                 {isPlaying ? <Pause className="w-6 h-6" /> : <Play className="w-6 h-6" />}
               </button>
               <button onClick={() => setIsMuted(!isMuted)} className={cn("p-2 text-white hover:text-secondary transition-colors relative", bgAudioLabel && isMuted && "animate-pulse text-secondary")}>
@@ -600,6 +660,11 @@ export default function Player() {
               <button onClick={toggleFullscreen} className="p-2 text-white hover:text-secondary transition-colors">
                 {isFullscreen ? <Minimize className="w-5 h-5" /> : <Maximize className="w-5 h-5" />}
               </button>
+              {isElectron && (
+                <button onClick={handleMinimize} className="p-2 text-white hover:text-secondary transition-colors" title="Minimize">
+                  <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><line x1="5" y1="12" x2="19" y2="12" /></svg>
+                </button>
+              )}
             </div>
           </div>
         </div>

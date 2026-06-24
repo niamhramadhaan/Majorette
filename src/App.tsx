@@ -13,7 +13,10 @@ import Settings from './pages/Settings';
 import QuickStart from './pages/QuickStart';
 import Player from './pages/Player';
 import ScreenPlayer from './pages/ScreenPlayer';
+import PlayerConfig from './pages/PlayerConfig';
 import ScreenDetail from './pages/ScreenDetail';
+import Tutorial from './pages/Tutorial';
+import ErrorBoundary from './components/ErrorBoundary';
 import { getSettings, getUserName } from './lib/storage';
 
 function RequireAuth({ children }: { children: React.ReactNode }) {
@@ -43,30 +46,32 @@ function AppContent() {
           <QuickStart />
         </RequireAuth>
       } />
-      <Route path="/player" element={<Player />} />
-      <Route path="/player/screen/:screenId" element={<ScreenPlayer />} />
-      <Route path="/" element={
-        <RequireAuth>
-          <RequireSetup>
-            <Layout />
-          </RequireSetup>
-        </RequireAuth>
-      }>
-        <Route index element={<Navigate to="/dashboard" replace />} />
-        <Route path="dashboard" element={<Dashboard />} />
-        <Route path="locations">
-            <Route index element={<Locations />} />
-            <Route path="screen/:id" element={<ScreenDetail />} />
+      <Route path="/player" element={<ErrorBoundary><Player /></ErrorBoundary>} />
+      <Route path="/player/config" element={<PlayerConfig />} />
+      <Route path="/player/screen/:screenId" element={<ErrorBoundary><ScreenPlayer /></ErrorBoundary>} />
+        <Route path="/" element={
+          <RequireAuth>
+            <RequireSetup>
+              <Layout />
+            </RequireSetup>
+          </RequireAuth>
+        }>
+          <Route index element={<Navigate to="/dashboard" replace />} />
+          <Route path="dashboard" element={<ErrorBoundary><Dashboard /></ErrorBoundary>} />
+          <Route path="locations">
+              <Route index element={<ErrorBoundary><Locations /></ErrorBoundary>} />
+              <Route path="screen/:id" element={<ErrorBoundary><ScreenDetail /></ErrorBoundary>} />
+          </Route>
+          <Route path="films">
+              <Route index element={<ErrorBoundary><Films /></ErrorBoundary>} />
+              <Route path="ingest" element={<ErrorBoundary><FilmIngest /></ErrorBoundary>} />
+              <Route path=":id" element={<ErrorBoundary><FilmDetail /></ErrorBoundary>} />
+          </Route>
+          <Route path="schedule" element={<ErrorBoundary><Schedule /></ErrorBoundary>} />
+          <Route path="schedule/builder" element={<ErrorBoundary><ShowBuilder /></ErrorBoundary>} />
+          <Route path="settings" element={<ErrorBoundary><Settings /></ErrorBoundary>} />
+          <Route path="tutorial" element={<ErrorBoundary><Tutorial /></ErrorBoundary>} />
         </Route>
-        <Route path="films">
-            <Route index element={<Films />} />
-            <Route path="ingest" element={<FilmIngest />} />
-            <Route path=":id" element={<FilmDetail />} />
-        </Route>
-        <Route path="schedule" element={<Schedule />} />
-        <Route path="schedule/builder" element={<ShowBuilder />} />
-        <Route path="settings" element={<Settings />} />
-      </Route>
     </Routes>
   );
 }
