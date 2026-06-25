@@ -175,21 +175,16 @@ export default function Settings() {
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Content Folder Path</label>
                 <div className="flex gap-2">
-                  <input type="text" value={current.contentRoot}
-                    readOnly={!isEditMode}
-                    onChange={(e) => setDraftSettings({ ...draftSettings, contentRoot: e.target.value })}
-                    placeholder="./media"
-                    className={cn("flex-1 rounded-lg px-3 py-2 text-sm font-mono transition-colors",
-                      isEditMode
-                        ? "bg-white border border-gray-200 focus:outline-none focus:ring-1 focus:ring-primary focus:border-primary"
-                        : "bg-gray-100 border border-gray-200 text-gray-600 cursor-not-allowed")} />
+                  <div className="flex-1 rounded-lg px-3 py-2 text-sm font-mono bg-gray-100 border border-gray-200 text-gray-600">
+                    {serverHealth?.contentRoot || current.contentRoot}
+                  </div>
                   <button type="button" onClick={handleValidatePath}
                     className="px-4 py-2 bg-white border border-gray-200 text-gray-700 hover:bg-gray-50 rounded-lg text-sm font-medium transition-colors flex items-center gap-2">
                     <Wifi className="w-4 h-4" /> Validate
                   </button>
                 </div>
                 <p className="text-xs text-gray-500 mt-1">
-                  Path where your media files are stored. Changes apply immediately.
+                  Set via <code className="bg-gray-100 px-1 py-0.5 rounded">CONTENT_ROOT</code> env var or <code className="bg-gray-100 px-1 py-0.5 rounded">--content-root</code> CLI flag. Restart server to apply.
                 </p>
               </div>
             </div>

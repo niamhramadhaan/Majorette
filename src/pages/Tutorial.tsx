@@ -1,9 +1,9 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Film, Calendar, Monitor, Music, Play, ChevronLeft, BookOpen, FolderOpen, ListChecks, ScreenShare, Volume2, Maximize, ArrowRight, GripVertical } from 'lucide-react';
+import { Film, Calendar, Monitor, Music, Play, ChevronLeft, BookOpen, FolderOpen, ListChecks, ScreenShare, Volume2, Maximize, ArrowRight, GripVertical, HelpCircle } from 'lucide-react';
 import { cn } from '../lib/utils';
 
-type TopicId = 'overview' | 'media' | 'schedule' | 'screens' | 'audio' | 'player';
+type TopicId = 'overview' | 'media' | 'schedule' | 'screens' | 'audio' | 'player' | 'faq';
 
 interface Topic {
   id: TopicId;
@@ -18,6 +18,7 @@ const topics: Topic[] = [
   { id: 'screens', icon: ScreenShare, label: 'Assign to Screens' },
   { id: 'audio', icon: Volume2, label: 'Background Audio' },
   { id: 'player', icon: Maximize, label: 'Open the Player' },
+  { id: 'faq', icon: HelpCircle, label: 'FAQ' },
 ];
 
 const workflowSteps = [
@@ -426,6 +427,62 @@ function PlayerContent({ onNavigate }: { onNavigate: (id: TopicId) => void }) {
   );
 }
 
+function FaqContent({ onNavigate }: { onNavigate: (id: TopicId) => void }) {
+  const faqs = [
+    {
+      q: 'Where are my media files stored?',
+      a: 'Media files are stored in a folder on your computer called "media" inside your JEMIMA installation directory. The server prints the full path on startup, and you can also see it in Settings. A new folder is created automatically when you first run the server.',
+    },
+    {
+      q: 'How do I change the content folder location?',
+      a: 'Set the CONTENT_ROOT environment variable in your .env file, or pass the --content-root flag when starting the server. Then restart the server for the change to take effect.',
+    },
+    {
+      q: 'Why is my content not showing in the player?',
+      a: 'Make sure your files are in the content folder (shown in Settings), then go to Films and click Ingest to scan them. Also check that a schedule is active and assigned to the screen you\'re viewing.',
+    },
+    {
+      q: 'What\'s the difference between Loop and Play Once?',
+      a: 'Loop mode plays your schedule continuously from start to end, then repeats forever. Play Once mode plays through the schedule one time and marks it as Done.',
+    },
+    {
+      q: 'Can I play different content on different screens?',
+      a: 'Yes! Create multiple screens in Locations, build separate schedules, and assign each schedule to its own screen. Each screen plays independently.',
+    },
+    {
+      q: 'How do I add background music to a schedule?',
+      a: 'Add an audio file to your schedule in the builder, then toggle the Audio Overlay switch on that item. The audio will play continuously behind all video and image content.',
+    },
+  ];
+
+  return (
+    <div className="space-y-5">
+      <p className="text-gray-600 leading-relaxed">
+        Common questions and answers about using JEMIMA.
+      </p>
+
+      <div className="space-y-3">
+        {faqs.map((faq, i) => (
+          <div key={i} className="card p-5">
+            <h3 className="font-heading font-semibold text-gray-900 text-sm mb-2">{faq.q}</h3>
+            <p className="text-sm text-gray-600 leading-relaxed">{faq.a}</p>
+          </div>
+        ))}
+      </div>
+
+      <div className="space-y-2">
+        <p className="text-sm font-medium text-gray-700">Related topics:</p>
+        <div className="flex flex-wrap gap-3">
+          <TopicLink topicId="media" label="Add Media" onClick={onNavigate} />
+          <TopicLink topicId="schedule" label="Create Schedule" onClick={onNavigate} />
+          <TopicLink topicId="screens" label="Assign to Screens" onClick={onNavigate} />
+          <TopicLink topicId="audio" label="Background Audio" onClick={onNavigate} />
+        </div>
+      </div>
+    </div>
+  );
+}
+
 const contentMap: Record<TopicId, React.ComponentType<{ onNavigate: (id: TopicId) => void }>> = {
   overview: OverviewContent,
   media: MediaContent,
@@ -433,6 +490,7 @@ const contentMap: Record<TopicId, React.ComponentType<{ onNavigate: (id: TopicId
   screens: ScreensContent,
   audio: AudioContent,
   player: PlayerContent,
+  faq: FaqContent,
 };
 
 export default function Tutorial() {

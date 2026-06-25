@@ -15,7 +15,7 @@ function getContentRoot() {
   return process.env.CONTENT_ROOT || './media';
 }
 
-const CONTENT_ROOT = getContentRoot();
+const CONTENT_ROOT = path.resolve(getContentRoot());
 
 const MEDIA_EXTENSIONS = new Set([
   '.mp4', '.webm', '.mkv', '.avi', '.mov',
@@ -248,9 +248,16 @@ if (fs.existsSync(distPath)) {
 app.listen(PORT, '0.0.0.0', () => {
   console.log('JEMIMA content server running on http://localhost:' + PORT);
   console.log('Content root: ' + CONTENT_ROOT);
-  if (!fs.existsSync(CONTENT_ROOT)) {
-    console.log('WARNING: Content root does not exist. Create it and add media files.');
+  if (fs.existsSync(CONTENT_ROOT)) {
+    const count = fs.readdirSync(CONTENT_ROOT).filter(f => {
+      const ext = path.extname(f).toLowerCase().slice(1);
+      return MEDIA_EXTENSIONS.has(ext);
+    }).length;
+    console.log('Found ' + count + ' media file(s) in content folder.');
+  } else {
+    console.log('Content folder does not exist. It will be created when you add media.');
   }
+  console.log('Put your media files in: ' + CONTENT_ROOT);
 });
 
 module.exports = app;

@@ -18,6 +18,8 @@ npm run dev
 
 Open `http://localhost:3000`, enter your name, and the setup wizard walks you through the rest. Takes about 2 minutes. ヽ(・∀・)ﾉ
 
+> **Where do I put media files?** A `media` folder is created automatically in the project root when you first run the server. The server prints the full path on startup. You can also see it in **Settings**.
+
 ---
 
 ## ◈ Features
@@ -95,7 +97,7 @@ JEMIMA reads files directly from a folder on your system ─ no uploading. Drop 
   Films ──> Ingest ──> Select files ──> Import
 ```
 
-1. Place your media files in the content folder (shown in **Settings** ─ default is `./media`)
+1. Place your media files in the content folder (shown in **Settings** ─ default is `./media`, created automatically in the project root when you first run the server)
 2. Go to **Films** → click **Ingest**
 3. Select the files you want ─ JEMIMA reads them from disk, no upload needed
 4. Click Import ─ they're now in your library, ready to schedule
