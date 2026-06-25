@@ -3,7 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { createPortal } from 'react-dom';
 import { ArrowLeft, Monitor, ExternalLink, Copy, Edit2, Save, X, Trash2, Volume2, Activity, Wifi, WifiOff, Pause } from 'lucide-react';
 import { cn } from '../lib/utils';
-import { STORAGE_KEYS, saveVenues, addActivity, getScreenPlayerState, getActiveScheduleForScreen } from '../lib/storage';
+import { STORAGE_KEYS, saveVenues, addActivity, getScreenPlayerState, getActiveScheduleForScreen, getScreenById } from '../lib/storage';
 import type { Venue, ScreenConfig, Schedule, LocalContent } from '../types';
 
 export default function ScreenDetail() {
@@ -242,9 +242,27 @@ export default function ScreenDetail() {
       {confirmDelete && createPortal(
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-gray-900/50 backdrop-blur-sm animate-in fade-in">
           <div className="bg-white rounded-xl shadow-2xl w-full max-w-sm overflow-hidden flex flex-col animate-in slide-in-from-bottom-4 text-center p-6">
-            <div className="w-12 h-12 rounded-full bg-red-50 flex items-center justify-center mx-auto mb-4 border border-red-100"><Trash2 className="w-6 h-6 text-red-500" /></div>
-            <h3 className="font-heading font-semibold text-lg text-gray-900 mb-2">Delete Screen</h3>
-            <p className="text-gray-500 text-sm mb-6">Are you sure you want to delete <span className="font-semibold text-gray-700">"{screen.name}"</span>?</p>
+            {(() => {
+              const screenState = getScreenPlayerState(screen.id);
+              const screenSchedule = getActiveScheduleForScreen(schedules, content, screen.id);
+              const isOnline = screenState && (Date.now() - (screenState as any).timestamp) < 30000;
+              const isPlaying = isOnline && screenState?.isPlaying !== false;
+              return (
+                <>
+                  <div className={cn("w-12 h-12 rounded-full flex items-center justify-center mx-auto mb-4 border",
+                    isPlaying ? "bg-yellow-50 border-yellow-100" : "bg-red-50 border-red-100")}>
+                    <Trash2 className={cn("w-6 h-6", isPlaying ? "text-yellow-500" : "text-red-500")} />
+                  </div>
+                  <h3 className="font-heading font-semibold text-lg text-gray-900 mb-2">Delete Screen</h3>
+                  {isPlaying && screenSchedule && (
+                    <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3 mb-3 text-left">
+                      <p className="text-xs font-medium text-yellow-800">This screen is currently playing <span className="font-semibold">"{screenSchedule.name}"</span>. Deleting it will stop playback.</p>
+                    </div>
+                  )}
+                  <p className="text-gray-500 text-sm mb-6">Are you sure you want to delete <span className="font-semibold text-gray-700">"{screen.name}"</span>?</p>
+                </>
+              );
+            })()}
             <div className="flex items-center gap-3 w-full">
               <button onClick={() => setConfirmDelete(false)} className="flex-1 py-2.5 bg-white border border-gray-200 hover:bg-gray-50 text-gray-800 rounded-lg text-sm font-medium transition-colors cursor-pointer">Cancel</button>
               <button onClick={handleDelete} className="flex-1 py-2.5 bg-red-500 hover:bg-red-600 text-white rounded-lg text-sm font-medium transition-colors cursor-pointer shadow-sm">Delete</button>

@@ -1,9 +1,9 @@
 ﻿import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Play, Pause, Plus, Calendar, ExternalLink, Music, Image as ImageIcon, Film, Clock, SkipBack, SkipForward, CheckCircle, RotateCcw, X, CheckCircle2, History, Keyboard, Monitor, Check, ChevronsUpDown, ChevronLeft, ChevronRight, ChevronDown } from 'lucide-react';
+import { Play, Pause, Plus, Calendar, ExternalLink, Music, Image as ImageIcon, Film, Clock, SkipBack, SkipForward, CheckCircle, RotateCcw, X, CheckCircle2, History, Keyboard, Monitor, Check, ChevronsUpDown, ChevronLeft, ChevronRight, ChevronDown, AlertTriangle } from 'lucide-react';
 import { cn } from '../lib/utils';
 import { createPortal } from 'react-dom';
-import { STORAGE_KEYS, getActivities, getThumbnailUrl, getActiveSchedule, getUpcomingSchedule, getScheduleStartTime, emitSkipSignal, emitResumeSignal, emitDoneSignal, getPlayerState, getScheduleElapsed, getCurrentItemIndex, generateId, getTimestamp, getScheduleTotalDuration, resolveFilePath, getAllScreens, getScreenPlayerState, getActiveScheduleForScreen, assignScheduleToScreen, emitSkipSignalForScreen, emitPauseSignalForScreen, emitResumeSignalForScreen, emitDoneSignalForScreen, getUpcomingScheduleForScreen, addActivity } from '../lib/storage';
+import { STORAGE_KEYS, getActivities, getThumbnailUrl, getActiveSchedule, getUpcomingSchedule, getScheduleStartTime, emitSkipSignal, emitResumeSignal, emitDoneSignal, getPlayerState, getScheduleElapsed, getCurrentItemIndex, generateId, getTimestamp, getScheduleTotalDuration, resolveFilePath, getAllScreens, getScreenPlayerState, getActiveScheduleForScreen, assignScheduleToScreen, emitSkipSignalForScreen, emitPauseSignalForScreen, emitResumeSignalForScreen, emitDoneSignalForScreen, getUpcomingScheduleForScreen, addActivity, syncToApi } from '../lib/storage';
 import type { LocalContent, Schedule, ActivityLog, ScheduleItem, ScreenConfig } from '../types';
 
 function toDatetimeLocal(isoString: string): string {
@@ -66,6 +66,8 @@ export default function Dashboard() {
   const [screens, setScreens] = useState<ScreenConfig[]>([]);
   const [recreateScreenIds, setRecreateScreenIds] = useState<string[]>(['screen-default']);
   const [showRecreateScreenDropdown, setShowRecreateScreenDropdown] = useState(false);
+  const [activeScreenWarnings, setActiveScreenWarnings] = useState<{ id: string; name: string; scheduleName: string }[] | null>(null);
+  const [pendingRecreate, setPendingRecreate] = useState<{ newSchedule: Schedule } | null>(null);
   const [currentScreenIndex, setCurrentScreenIndex] = useState(0);
   const [showOpenPlayerDropdown, setShowOpenPlayerDropdown] = useState(false);
   const openPlayerDropdownRef = useRef<HTMLDivElement>(null);
@@ -131,10 +133,24 @@ export default function Dashboard() {
   const currentItemProgress = currentItemDuration > 0
     ? Math.min((currentItemResult!.offset / currentItemDuration) * 100, 100)
     : 0;
-  const nextItems = scheduleItems.slice((currentItemResult?.index ?? 0) + 1, (currentItemResult?.index ?? 0) + 4).map(item => {
-    const contentItem = content.find(c => c.id === item.contentId);
-    return { ...item, content: contentItem };
-  });
+  const nextItems = (() => {
+    const currentIdx = currentItemResult?.index ?? 0;
+    const after = scheduleItems.slice(currentIdx + 1, currentIdx + 4);
+    // In loop mode, wrap around to beginning if near the end
+    if (activeSchedule?.mode === 'loop' && after.length < 3) {
+      const remaining = 3 - after.length;
+      const wrapped = scheduleItems.slice(0, remaining);
+      return [...after, ...wrapped].map(item => {
+        const contentItem = content.find(c => c.id === item.contentId);
+        return { ...item, content: contentItem };
+      });
+    }
+    return after.map(item => {
+      const contentItem = content.find(c => c.id === item.contentId);
+      return { ...item, content: contentItem };
+    });
+  })();
+  const isLooping = activeSchedule?.mode === 'loop' && scheduleItems.length > 1 && (currentItemResult?.index ?? 0) >= scheduleItems.length - 1;
 
   const getUpcomingStart = (): Date | null => {
     if (!upcomingSchedule) return null;
@@ -237,9 +253,36 @@ export default function Dashboard() {
       createdAt: getTimestamp(),
       updatedAt: getTimestamp(),
     };
+
+    const screenIdsToAssign = recreateScreenIds.length > 0 ? recreateScreenIds : ['screen-default'];
+    const warnings: { id: string; name: string; scheduleName: string }[] = [];
+    for (const screenId of screenIdsToAssign) {
+      const screenState = getScreenPlayerState(screenId);
+      const isOnline = screenState && (Date.now() - (screenState as any).timestamp) < 30000;
+      const isPlaying = isOnline && screenState?.isPlaying !== false;
+      if (isPlaying) {
+        const activeSchedule = getActiveScheduleForScreen(schedules, content, screenId);
+        if (activeSchedule) {
+          const screenName = screens.find(s => s.id === screenId)?.name || screenId;
+          warnings.push({ id: screenId, name: screenName, scheduleName: activeSchedule.name });
+        }
+      }
+    }
+
+    if (warnings.length > 0) {
+      setActiveScreenWarnings(warnings);
+      setPendingRecreate({ newSchedule });
+      return;
+    }
+
+    performRecreate(newSchedule);
+  };
+
+  const performRecreate = (newSchedule: Schedule) => {
     const updated = [...schedules, newSchedule];
     setSchedules(updated);
     localStorage.setItem(STORAGE_KEYS.SCHEDULES, JSON.stringify(updated));
+    syncToApi('/api/schedules', updated);
     const screenIdsToAssign = recreateScreenIds.length > 0 ? recreateScreenIds : ['screen-default'];
     for (const screenId of screenIdsToAssign) {
       assignScheduleToScreen(screenId, newSchedule.id);
@@ -251,6 +294,14 @@ export default function Dashboard() {
     setRecreateScreenIds(['screen-default']);
     setShowRecreateScreenDropdown(false);
     showToast('New schedule created');
+  };
+
+  const confirmActiveScreenRecreate = () => {
+    if (!pendingRecreate) return;
+    const { newSchedule } = pendingRecreate;
+    setActiveScreenWarnings(null);
+    setPendingRecreate(null);
+    performRecreate(newSchedule);
   };
 
   const openRecreateFromDone = (schedule: Schedule) => {
@@ -327,6 +378,9 @@ export default function Dashboard() {
               const sUpcomingStart = screenUpcoming ? getScheduleStartTime(screenUpcoming) : null;
               const sUpcomingCountdown = sUpcomingStart ? Math.max(0, (sUpcomingStart.getTime() - Date.now()) / 1000) : 0;
               const sFirstItem = screenUpcoming?.items[0] ? content.find(c => c.id === screenUpcoming.items[0].contentId) : null;
+              const sIsLastItem = sItemResult && sItemResult.index >= screenItems.length - 1;
+              const sIsLooping = screenSchedule?.mode === 'loop' && screenItems.length > 1 && sIsLastItem;
+              const sFirstLoopItem = sIsLooping ? content.find(c => c.id === screenItems[0].contentId) : null;
 
               return (
                 <>
@@ -345,7 +399,11 @@ export default function Dashboard() {
                       </button>
                       {screens.length > 1 && <span className="text-xs text-gray-400 ml-1">{currentScreenIndex + 1}/{screens.length}</span>}
                     </div>
-                    {screenSchedule && <span className="px-3 py-1 bg-primary/10 text-primary-dark text-xs font-medium rounded-full border border-primary/20">{screenSchedule.name}</span>}
+                    {screenSchedule && (
+                      <span className="px-3 py-1 bg-primary/10 text-primary-dark text-xs font-medium rounded-full border border-primary/20">
+                        {screenSchedule.name}{screenSchedule.mode === 'loop' ? ' ↻' : ''}
+                      </span>
+                    )}
                   </div>
                   {screenSchedule?.status === 'done' ? (
                     <div className="text-center py-8">
@@ -388,6 +446,19 @@ export default function Dashboard() {
                           <button onClick={() => { setDoneModalSchedule(screenSchedule); }} className="p-1.5 text-gray-400 hover:text-primary transition-all active:scale-90" title="Mark Done">
                             <CheckCircle className="w-4 h-4" />
                           </button>
+                        </div>
+                      </div>
+                    </div>
+                  ) : sIsLooping ? (
+                    <div className="py-4">
+                      <div className="flex items-center gap-4">
+                        <div className="w-20 h-14 bg-primary/10 rounded-lg flex items-center justify-center flex-shrink-0 border border-primary/20">
+                          <RotateCcw className="w-6 h-6 text-primary" />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-[11px] text-primary font-semibold uppercase tracking-wide mb-0.5">↻ Looping</p>
+                          <p className="font-heading font-semibold text-gray-900 truncate">{screenSchedule.name}</p>
+                          <p className="text-xs text-gray-500 mt-0.5">Back to: {sFirstLoopItem?.title || 'first item'}</p>
                         </div>
                       </div>
                     </div>
@@ -435,7 +506,11 @@ export default function Dashboard() {
               <>
                 <div className="flex items-center justify-between mb-4">
                   <h2 className="font-heading font-semibold text-gray-800 flex items-center gap-2"><Play className="w-5 h-5 text-primary" /> Now Playing</h2>
-                  {activeSchedule && <span className="px-3 py-1 bg-primary/10 text-primary-dark text-xs font-medium rounded-full border border-primary/20">{activeSchedule.name}</span>}
+                  {activeSchedule && (
+                    <span className="px-3 py-1 bg-primary/10 text-primary-dark text-xs font-medium rounded-full border border-primary/20">
+                      {activeSchedule.name}{activeSchedule.mode === 'loop' ? ' ↻' : ''}
+                    </span>
+                  )}
                 </div>
                 {activeSchedule?.status === 'done' ? (
                   <div className="text-center py-8">
@@ -483,24 +558,31 @@ export default function Dashboard() {
 
           {nextItems.length > 0 && (
             <div className="card p-6">
-              <h2 className="font-heading font-semibold text-gray-800 mb-4 flex items-center gap-2"><Clock className="w-5 h-5 text-gray-400" /> Up Next</h2>
+              <h2 className="font-heading font-semibold text-gray-800 mb-4 flex items-center gap-2">
+                <Clock className="w-5 h-5 text-gray-400" /> Up Next
+                {isLooping && <span className="px-2 py-0.5 bg-primary/10 text-primary-dark text-[10px] font-semibold rounded-full">↻ Loop</span>}
+              </h2>
               <div className="space-y-3">
-                {nextItems.map((item, index) => (
-                  <div key={item.contentId} className="flex items-center gap-4 p-3 bg-gray-50 rounded-xl hover:bg-gray-100 transition-colors">
-                    <span className="w-8 h-8 bg-gray-200 rounded-full flex items-center justify-center text-sm font-bold text-gray-500">{index + 2}</span>
-                    <div className="w-12 h-8 bg-gray-200 rounded flex items-center justify-center flex-shrink-0 overflow-hidden">
-                      {item.content && getThumbnailUrl(item.content) ? (
-                        <img src={getThumbnailUrl(item.content)!} alt="" className="w-full h-full object-cover" />
-                      ) : (
-                        getContentIcon(item.content?.type)
-                      )}
+                {nextItems.map((item, index) => {
+                  const isWrapped = index >= (scheduleItems.length - 1 - (currentItemResult?.index ?? 0));
+                  return (
+                    <div key={`${item.contentId}-${index}`} className={cn("flex items-center gap-4 p-3 rounded-xl transition-colors", isWrapped ? "bg-primary/5 hover:bg-primary/10" : "bg-gray-50 hover:bg-gray-100")}>
+                      <span className="w-8 h-8 bg-gray-200 rounded-full flex items-center justify-center text-sm font-bold text-gray-500">{index + 2}</span>
+                      <div className="w-12 h-8 bg-gray-200 rounded flex items-center justify-center flex-shrink-0 overflow-hidden">
+                        {item.content && getThumbnailUrl(item.content) ? (
+                          <img src={getThumbnailUrl(item.content)!} alt="" className="w-full h-full object-cover" />
+                        ) : (
+                          getContentIcon(item.content?.type)
+                        )}
+                      </div>
+                      <div className="flex-1">
+                        <p className="text-sm font-medium text-gray-700">{item.content?.title || 'Unknown'}</p>
+                        <p className="text-xs text-gray-500 capitalize">{item.content?.type} - {item.duration || item.content?.duration}s</p>
+                      </div>
+                      {isWrapped && <span className="text-[10px] text-primary font-medium">↻ Loop</span>}
                     </div>
-                    <div className="flex-1">
-                      <p className="text-sm font-medium text-gray-700">{item.content?.title || 'Unknown'}</p>
-                      <p className="text-xs text-gray-500 capitalize">{item.content?.type} - {item.duration || item.content?.duration}s</p>
-                    </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             </div>
           )}
@@ -756,6 +838,27 @@ export default function Dashboard() {
           </div>
         </div>,
         document.body
+      )}
+
+      {activeScreenWarnings && createPortal(
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-gray-900/50 backdrop-blur-sm animate-in fade-in">
+          <div className="bg-white rounded-xl shadow-2xl w-full max-w-md overflow-hidden flex flex-col animate-in slide-in-from-bottom-4 text-center p-6">
+            <div className="w-12 h-12 rounded-full bg-yellow-50 flex items-center justify-center mx-auto mb-4 border border-yellow-100"><AlertTriangle className="w-6 h-6 text-yellow-500" /></div>
+            <h3 className="font-heading font-semibold text-lg text-gray-900 mb-2">Screens Currently Playing</h3>
+            <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3 mb-4 text-left space-y-2">
+              {activeScreenWarnings.map(w => (
+                <p key={w.id} className="text-xs font-medium text-yellow-800">
+                  <span className="font-semibold">{w.name}</span> is playing "<span className="font-semibold">{w.scheduleName}</span>"
+                </p>
+              ))}
+            </div>
+            <p className="text-gray-500 text-sm mb-6">Assigning a new schedule will interrupt playback on these screens. Continue?</p>
+            <div className="flex items-center gap-3 w-full">
+              <button onClick={() => { setActiveScreenWarnings(null); setPendingRecreate(null); }} className="flex-1 py-2.5 bg-white border border-gray-200 hover:bg-gray-50 text-gray-800 rounded-lg text-sm font-medium transition-colors cursor-pointer">Cancel</button>
+              <button onClick={confirmActiveScreenRecreate} className="flex-1 py-2.5 bg-primary hover:bg-primary-dark text-white rounded-lg text-sm font-medium transition-colors cursor-pointer shadow-sm">Continue</button>
+            </div>
+          </div>
+        </div>, document.body
       )}
     </div>
   );

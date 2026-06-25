@@ -12,7 +12,7 @@ function getContentRoot() {
   if (rootIndex !== -1 && args[rootIndex + 1]) {
     return args[rootIndex + 1];
   }
-  return process.env.CONTENT_ROOT || 'D:\\Majorette';
+  return process.env.CONTENT_ROOT || 'D:\\JEMIMA';
 }
 
 const CONTENT_ROOT = getContentRoot();
@@ -192,10 +192,65 @@ app.get('/files', (req, res) => {
 
 ensureDirectory();
 
-app.listen(PORT, () => {
-  console.log('Majorette content server running on http://localhost:' + PORT);
+// ─── Data API (persists app data for cross-context access) ──────────────────
+function getDataPath(envKey, fallbackName) {
+  if (process.env[envKey]) return process.env[envKey];
+  return path.join(path.dirname(CONTENT_ROOT), fallbackName);
+}
+
+function createDataEndpoint(getPath, endpoint) {
+  app.get(endpoint, (req, res) => {
+    try {
+      const filePath = getPath();
+      if (!fs.existsSync(filePath)) return res.json([]);
+      const data = JSON.parse(fs.readFileSync(filePath, 'utf-8'));
+      res.json(data);
+    } catch (err) {
+      console.error(`Error reading ${endpoint}:`, err);
+      res.json([]);
+    }
+  });
+
+  app.post(endpoint, express.json(), (req, res) => {
+    try {
+      const filePath = getPath();
+      fs.writeFileSync(filePath, JSON.stringify(req.body, null, 2));
+      res.json({ ok: true });
+    } catch (err) {
+      console.error(`Error writing ${endpoint}:`, err);
+      res.status(500).json({ error: `Failed to save ${endpoint}` });
+    }
+  });
+}
+
+createDataEndpoint(() => getDataPath('SCREENS_DATA_PATH', 'screens.json'), '/api/screens');
+createDataEndpoint(() => getDataPath('CONTENT_DATA_PATH', 'content.json'), '/api/content');
+createDataEndpoint(() => getDataPath('SCHEDULES_DATA_PATH', 'schedules.json'), '/api/schedules');
+createDataEndpoint(() => getDataPath('VENUES_DATA_PATH', 'venues.json'), '/api/venues');
+createDataEndpoint(() => getDataPath('SETTINGS_DATA_PATH', 'settings.json'), '/api/settings');
+
+// Serve built React app (Electron mode / production)
+const isAsar = __dirname.includes('app.asar');
+const distPath = isAsar
+  ? path.join(__dirname.replace('app.asar', 'app.asar.unpacked'), 'dist')
+  : path.join(__dirname, 'dist');
+
+if (fs.existsSync(distPath)) {
+  app.use(express.static(distPath));
+  // SPA fallback — non-API routes return index.html
+  app.get('*', (req, res) => {
+    if (!req.path.startsWith('/api') && !req.path.startsWith('/content') && !req.path.startsWith('/files') && !req.path.startsWith('/health')) {
+      res.sendFile(path.join(distPath, 'index.html'));
+    }
+  });
+}
+
+app.listen(PORT, '0.0.0.0', () => {
+  console.log('JEMIMA content server running on http://localhost:' + PORT);
   console.log('Content root: ' + CONTENT_ROOT);
   if (!fs.existsSync(CONTENT_ROOT)) {
     console.log('WARNING: Content root does not exist. Create it and add media files.');
   }
 });
+
+module.exports = app;

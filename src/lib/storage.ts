@@ -1,6 +1,15 @@
 import type { LocalContent, Schedule, Venue, ScreenConfig, AppSettings, ActivityLog, ScheduleStatus } from '../types';
 import { APP_CONFIG } from '../config/app';
 
+// Fire-and-forget sync to server API for cross-context persistence
+export function syncToApi(endpoint: string, data: unknown): void {
+  fetch(`${APP_CONFIG.serverUrl}${endpoint}`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(data),
+  }).catch(() => { /* server may not be available */ });
+}
+
 export const STORAGE_KEYS = {
   USER_NAME: 'jemima_user_name',
   CONTENT: 'jemima_content',
@@ -314,6 +323,7 @@ export function getContent(): LocalContent[] {
 
 export function saveContent(content: LocalContent[]): void {
   localStorage.setItem(STORAGE_KEYS.CONTENT, JSON.stringify(content));
+  syncToApi('/api/content', content);
 }
 
 export function getSchedules(): Schedule[] {
@@ -327,6 +337,7 @@ export function getSchedules(): Schedule[] {
 
 export function saveSchedules(schedules: Schedule[]): void {
   localStorage.setItem(STORAGE_KEYS.SCHEDULES, JSON.stringify(schedules));
+  syncToApi('/api/schedules', schedules);
 }
 
 export function getScheduleStartTime(schedule: Schedule): Date {
@@ -499,6 +510,38 @@ export function getVenues(): Venue[] {
 
 export function saveVenues(venues: Venue[]): void {
   localStorage.setItem(STORAGE_KEYS.VENUES, JSON.stringify(venues));
+  syncToApi('/api/venues', venues);
+}
+
+export function ensureScreenExists(screenId: string): ScreenConfig {
+  const existing = getScreenById(screenId);
+  if (existing) return existing;
+
+  const venues = getVenues();
+  const venueId = venues.length > 0 ? venues[0].id : 'venue-default';
+
+  const newScreen: ScreenConfig = {
+    id: screenId,
+    name: screenId,
+    playerUrl: `/player/screen/${screenId}`,
+    venueId,
+    createdAt: new Date().toISOString(),
+  };
+
+  if (venues.length === 0) {
+    const defaultVenue: Venue = {
+      id: venueId,
+      name: 'My Venue',
+      screens: [newScreen],
+      createdAt: new Date().toISOString(),
+    };
+    saveVenues([defaultVenue]);
+  } else {
+    venues[0].screens.push(newScreen);
+    saveVenues(venues);
+  }
+
+  return newScreen;
 }
 
 export function getSettings(): AppSettings {
@@ -512,6 +555,7 @@ export function getSettings(): AppSettings {
 
 export function saveSettings(settings: AppSettings): void {
   localStorage.setItem(STORAGE_KEYS.SETTINGS, JSON.stringify(settings));
+  syncToApi('/api/settings', settings);
 }
 
 interface ServerFile {
@@ -558,54 +602,6 @@ export async function checkServerHealth(): Promise<ServerHealth> {
     return { connected: false, contentRoot: '', exists: false, fileCount: 0 };
   }
 }
-
-export const SAMPLE_CONTENT: LocalContent[] = [
-  {
-    id: 'sample-1',
-    title: 'Welcome Video',
-    type: 'video',
-    filePath: 'sample-welcome.mp4',
-    fileName: 'sample-welcome.mp4',
-    mimeType: 'video/mp4',
-    duration: 30,
-    createdAt: new Date().toISOString(),
-  },
-  {
-    id: 'sample-2',
-    title: 'Background Music',
-    type: 'audio',
-    filePath: 'sample-background.mp3',
-    fileName: 'sample-background.mp3',
-    mimeType: 'audio/mpeg',
-    duration: 180,
-    createdAt: new Date().toISOString(),
-  },
-  {
-    id: 'sample-3',
-    title: 'Logo Display',
-    type: 'image',
-    filePath: 'sample-logo.png',
-    fileName: 'sample-logo.png',
-    mimeType: 'image/png',
-    duration: 10,
-    createdAt: new Date().toISOString(),
-  },
-];
-
-export const SAMPLE_SCHEDULE: Schedule = {
-  id: 'schedule-default',
-  name: 'Daily Loop',
-  items: [
-    { contentId: 'sample-1', order: 0, duration: 30, audioOverlay: false },
-    { contentId: 'sample-2', order: 1, duration: 180, audioOverlay: false },
-    { contentId: 'sample-3', order: 2, duration: 10, audioOverlay: false },
-  ],
-  mode: 'loop',
-  startTime: new Date(Date.now() + 60000).toISOString(),
-  locationId: 'venue-default',
-  createdAt: new Date().toISOString(),
-  updatedAt: new Date().toISOString(),
-};
 
 // ─── Screen-Scoped Functions (multi-player) ─────────────────────────────────
 
@@ -727,6 +723,7 @@ export function assignScheduleToScreen(screenId: string, scheduleId: string): vo
       screens: v.screens.map(s => s.id === screenId ? { ...s, scheduleId } : s),
     }));
     localStorage.setItem(STORAGE_KEYS.VENUES, JSON.stringify(updated));
+    syncToApi('/api/venues', updated);
   } catch { /* ignore */ }
 }
 
@@ -744,6 +741,7 @@ export function unassignScheduleFromScreen(screenId: string): void {
       }),
     }));
     localStorage.setItem(STORAGE_KEYS.VENUES, JSON.stringify(updated));
+    syncToApi('/api/venues', updated);
   } catch { /* ignore */ }
 }
 

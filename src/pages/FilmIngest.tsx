@@ -1,6 +1,7 @@
 ﻿import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ArrowLeft, Film, Music, Image as ImageIcon, CheckCircle2, AlertCircle, FolderOpen, Loader2, Check, X } from 'lucide-react';
+import { createPortal } from 'react-dom';
+import { ArrowLeft, Film, Music, Image as ImageIcon, CheckCircle2, AlertCircle, FolderOpen, Loader2, Check, X, AlertTriangle } from 'lucide-react';
 import { cn } from '../lib/utils';
 import { STORAGE_KEYS, generateId, getTimestamp, addActivity, fetchFilesFromServer, getMimeTypeFromExtension, resolveFilePath, detectDuration, generateVideoThumbnail, getContentRoot } from '../lib/storage';
 import type { LocalContent, ContentType } from '../types';
@@ -32,10 +33,24 @@ export default function FilmIngest() {
   const [serverFiles, setServerFiles] = useState<ServerFile[]>([]);
   const [isLoadingFiles, setIsLoadingFiles] = useState(false);
   const [serverError, setServerError] = useState<string | null>(null);
+  const [existingPaths, setExistingPaths] = useState<Set<string>>(new Set());
+  const [duplicateConfirmFile, setDuplicateConfirmFile] = useState<ServerFile | null>(null);
 
   const contentRoot = getContentRoot();
 
-  useEffect(() => { loadFiles(); }, [contentType]);
+  useEffect(() => { loadExistingPaths(); loadFiles(); }, [contentType]);
+
+  const loadExistingPaths = () => {
+    try {
+      const stored = localStorage.getItem(STORAGE_KEYS.CONTENT);
+      if (stored) {
+        const content: LocalContent[] = JSON.parse(stored);
+        setExistingPaths(new Set(content.map(c => c.filePath)));
+      } else {
+        setExistingPaths(new Set());
+      }
+    } catch { setExistingPaths(new Set()); }
+  };
 
   const loadFiles = async () => {
     setIsLoadingFiles(true);
@@ -53,12 +68,16 @@ export default function FilmIngest() {
 
   const isSelected = (file: ServerFile) => entries.some(e => e.file.path === file.path);
 
-  const toggleFile = async (file: ServerFile) => {
-    if (isSelected(file)) {
-      setEntries(prev => prev.filter(e => e.file.path !== file.path));
-      return;
-    }
+  const isAlreadyIngested = (file: ServerFile) => existingPaths.has(file.path);
 
+  const confirmDuplicateIngest = async () => {
+    if (!duplicateConfirmFile) return;
+    const file = duplicateConfirmFile;
+    setDuplicateConfirmFile(null);
+    await addFileToEntries(file);
+  };
+
+  const addFileToEntries = async (file: ServerFile) => {
     const defaultDuration = contentType === 'image' ? 10 : 30;
     const autoTitle = file.name.replace(/\.[^/.]+$/, '');
 
@@ -100,6 +119,20 @@ export default function FilmIngest() {
     if (contentType === 'image') {
       setEntries(prev => prev.map(e => e.file.path === filePath ? { ...e, thumbnail: resolveFilePath(file.path) } : e));
     }
+  };
+
+  const toggleFile = async (file: ServerFile) => {
+    if (isSelected(file)) {
+      setEntries(prev => prev.filter(e => e.file.path !== file.path));
+      return;
+    }
+
+    if (isAlreadyIngested(file)) {
+      setDuplicateConfirmFile(file);
+      return;
+    }
+
+    await addFileToEntries(file);
   };
 
   const updateEntry = (path: string, updates: Partial<FileEntry>) => {
@@ -279,17 +312,21 @@ export default function FilmIngest() {
             <div className="space-y-2 max-h-64 overflow-y-auto">
               {serverFiles.map((file) => {
                 const selected = isSelected(file);
+                const alreadyIngested = isAlreadyIngested(file);
                 return (
                   <div key={file.path} onClick={() => toggleFile(file)}
                     className={cn("p-3 rounded-lg border cursor-pointer transition-all flex items-center justify-between",
-                      selected ? "border-primary bg-primary/5" : "border-gray-200 hover:border-gray-300 bg-white")}>
+                      selected ? "border-primary bg-primary/5" : alreadyIngested ? "border-gray-200 bg-gray-50" : "border-gray-200 hover:border-gray-300 bg-white")}>
                     <div className="flex items-center gap-3">
                       <div className={cn("w-5 h-5 rounded border-2 flex items-center justify-center transition-colors",
                         selected ? "border-primary bg-primary" : "border-gray-300")}>
                         {selected && <Check className="w-3 h-3 text-white" />}
                       </div>
                       {contentType === 'video' ? <Film className="w-4 h-4 text-gray-400" /> : contentType === 'audio' ? <Music className="w-4 h-4 text-gray-400" /> : <ImageIcon className="w-4 h-4 text-gray-400" />}
-                      <span className="text-sm font-medium text-gray-700">{file.name}</span>
+                      <span className={cn("text-sm font-medium", alreadyIngested && !selected ? "text-gray-400" : "text-gray-700")}>{file.name}</span>
+                      {alreadyIngested && !selected && (
+                        <span className="text-[10px] font-medium text-gray-400 bg-gray-100 px-1.5 py-0.5 rounded">Already added</span>
+                      )}
                     </div>
                     <span className="text-xs text-gray-400">{formatFileSize(file.size)}</span>
                   </div>
@@ -362,6 +399,20 @@ export default function FilmIngest() {
           </button>
         </div>
       </form>
+
+      {duplicateConfirmFile && createPortal(
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-gray-900/50 backdrop-blur-sm animate-in fade-in">
+          <div className="bg-white rounded-xl shadow-2xl w-full max-w-sm overflow-hidden flex flex-col animate-in slide-in-from-bottom-4 text-center p-6">
+            <div className="w-12 h-12 rounded-full bg-yellow-50 flex items-center justify-center mx-auto mb-4 border border-yellow-100"><AlertTriangle className="w-6 h-6 text-yellow-500" /></div>
+            <h3 className="font-heading font-semibold text-lg text-gray-900 mb-2">Already Ingested</h3>
+            <p className="text-gray-500 text-sm mb-6">"<span className="font-semibold text-gray-700">{duplicateConfirmFile.name}</span>" is already in your content library. Add it again?</p>
+            <div className="flex items-center gap-3 w-full">
+              <button onClick={() => setDuplicateConfirmFile(null)} className="flex-1 py-2.5 bg-white border border-gray-200 hover:bg-gray-50 text-gray-800 rounded-lg text-sm font-medium transition-colors cursor-pointer">Cancel</button>
+              <button onClick={confirmDuplicateIngest} className="flex-1 py-2.5 bg-primary hover:bg-primary-dark text-white rounded-lg text-sm font-medium transition-colors cursor-pointer shadow-sm">Add Again</button>
+            </div>
+          </div>
+        </div>, document.body
+      )}
     </div>
   );
 }

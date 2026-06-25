@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { createPortal } from 'react-dom';
-import { Menu, Search, LogOut, ChevronDown, User as UserIcon, X, CheckCircle2, Film, Music, Image as ImageIcon, Calendar } from 'lucide-react';
+import { Menu, Search, LogOut, ChevronDown, User as UserIcon, X, CheckCircle2, Film, Music, Image as ImageIcon, Calendar, BookOpen } from 'lucide-react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { cn } from '../lib/utils';
 import { getUserName, saveUserName, clearUserName, STORAGE_KEYS, getThumbnailUrl } from '../lib/storage';
@@ -43,6 +43,17 @@ export default function Topbar({ setSidebarOpen, requestNavigation, setDirty }: 
     document.addEventListener("mousedown", handleClickOutside);
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
+
+  useEffect(() => {
+    if (!isAccountModalOpen) return;
+    function handleKeyDown(event: KeyboardEvent) {
+      if (event.key === 'Escape') {
+        setIsAccountModalOpen(false);
+      }
+    }
+    document.addEventListener('keydown', handleKeyDown);
+    return () => document.removeEventListener('keydown', handleKeyDown);
+  }, [isAccountModalOpen]);
 
   useEffect(() => {
     if (!searchValue.trim()) {
@@ -309,7 +320,14 @@ export default function Topbar({ setSidebarOpen, requestNavigation, setDirty }: 
                <div className="px-4 py-2 border-b border-gray-100 sm:hidden">
                  <p className="text-sm font-medium text-gray-700">{userName || 'User'}</p>
                </div>
-               <button 
+               <button
+                 className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 flex items-center gap-2 transition-colors cursor-pointer"
+                 onClick={() => { navigate('/tutorial'); setIsProfileOpen(false); }}
+               >
+                 <BookOpen className="w-4 h-4 text-gray-400" />
+                 Tutorial
+               </button>
+               <button
                  className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 flex items-center gap-2 transition-colors cursor-pointer"
                  onClick={() => { setIsAccountModalOpen(true); setIsProfileOpen(false); }}
                >
@@ -330,8 +348,8 @@ export default function Topbar({ setSidebarOpen, requestNavigation, setDirty }: 
       </div>
       
       {isAccountModalOpen && createPortal(
-        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-gray-900/50 backdrop-blur-sm animate-in fade-in">
-          <div className="bg-white rounded-xl shadow-2xl w-full max-w-md overflow-hidden flex flex-col animate-in slide-in-from-bottom-4">
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-gray-900/50 backdrop-blur-sm animate-in fade-in" onClick={() => setIsAccountModalOpen(false)}>
+          <div className="bg-white rounded-xl shadow-2xl w-full max-w-md overflow-hidden flex flex-col animate-in slide-in-from-bottom-4" onClick={(e) => e.stopPropagation()}>
             <div className="p-6 border-b border-gray-100 flex items-center justify-between bg-gray-50/50">
                <div>
                  <h3 className="font-heading font-semibold text-lg text-gray-900 tracking-tight">My Account</h3>

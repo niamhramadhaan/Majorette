@@ -1,9 +1,10 @@
-import React, { useState, useMemo, useEffect, useRef } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { ArrowLeft, Clock, Film, GripVertical, Plus, Trash2, Save, PlayCircle, Search, Filter, Music, Image as ImageIcon, Play, Pause, Monitor, Check, ChevronsUpDown } from 'lucide-react';
+import React, { useState, useMemo, useEffect, useRef, useCallback } from 'react';
+import { useNavigate, useOutletContext } from 'react-router-dom';
+import { createPortal } from 'react-dom';
+import { ArrowLeft, Clock, Film, GripVertical, Plus, Trash2, Save, PlayCircle, Search, Filter, Music, Image as ImageIcon, Play, Pause, Monitor, Check, ChevronsUpDown, AlertTriangle } from 'lucide-react';
 import { cn } from '../lib/utils';
 import { Reorder } from 'motion/react';
-import { STORAGE_KEYS, generateId, getTimestamp, addActivity, getThumbnailUrl, resolveFilePath, getAllScreens, assignScheduleToScreen } from '../lib/storage';
+import { STORAGE_KEYS, generateId, getTimestamp, addActivity, getThumbnailUrl, resolveFilePath, getAllScreens, assignScheduleToScreen, getActiveScheduleForScreen, getScreenPlayerState, syncToApi } from '../lib/storage';
 import type { LocalContent, Schedule, ScheduleItem, ScreenConfig } from '../types';
 
 interface SequenceItem {
@@ -42,6 +43,7 @@ function formatElapsed(seconds: number): string {
 
 export default function ShowBuilder() {
   const navigate = useNavigate();
+  const { setDirty, requestNavigation } = useOutletContext<{ setDirty: (v: boolean) => void, requestNavigation: (path: string) => void }>();
   const [content, setContent] = useState<LocalContent[]>([]);
   const [sequence, setSequence] = useState<SequenceItem[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
@@ -59,8 +61,16 @@ export default function ShowBuilder() {
   const [screens, setScreens] = useState<ScreenConfig[]>([]);
   const [selectedScreenIds, setSelectedScreenIds] = useState<string[]>(['screen-default']);
   const [showScreenDropdown, setShowScreenDropdown] = useState(false);
+  const [activeScreenWarnings, setActiveScreenWarnings] = useState<{ id: string; name: string; scheduleName: string }[] | null>(null);
+  const [pendingSave, setPendingSave] = useState<{ scheduleItems: ScheduleItem[]; schedules: Schedule[] } | null>(null);
   const screenDropdownRef = useRef<HTMLDivElement>(null);
   const previewRef = useRef<HTMLAudioElement | null>(null);
+
+  const initialSequenceRef = useRef<string>('');
+  const initialNameRef = useRef<string>('New Schedule');
+  const initialModeRef = useRef<string>('loop');
+  const initialStartTimeRef = useRef<string>('');
+  const initialScreenIdsRef = useRef<string>('');
 
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
@@ -117,16 +127,40 @@ export default function ShowBuilder() {
             setScreens(allScreens);
             const preSelected = allScreens.filter(sc => sc.scheduleId === editingId).map(sc => sc.id);
             setSelectedScreenIds(preSelected);
+            snapshotInitialState(items, schedule.name, schedule.mode, schedule.startTime, preSelected);
           }
         }
         localStorage.removeItem('editing_schedule_id');
       } else {
         setScreens(getAllScreens());
+        snapshotInitialState([], 'New Schedule', 'loop', startTime, ['screen-default']);
       }
     } catch {
       // ignore
     }
   };
+
+  const snapshotInitialState = useCallback((seq: SequenceItem[], name: string, mode: string, start: string, screenIds: string[]) => {
+    initialSequenceRef.current = JSON.stringify(seq.map(s => ({ contentId: s.contentId, order: s.order, duration: s.duration, audioOverlay: s.audioOverlay })));
+    initialNameRef.current = name;
+    initialModeRef.current = mode;
+    initialStartTimeRef.current = start;
+    initialScreenIdsRef.current = JSON.stringify([...screenIds].sort());
+  }, []);
+
+  const isDirty = useMemo(() => {
+    const currentSeq = JSON.stringify(sequence.map(s => ({ contentId: s.contentId, order: s.order, duration: s.duration, audioOverlay: s.audioOverlay })));
+    const currentScreenIds = JSON.stringify([...selectedScreenIds].sort());
+    return currentSeq !== initialSequenceRef.current
+      || scheduleName !== initialNameRef.current
+      || scheduleMode !== initialModeRef.current
+      || startTime !== initialStartTimeRef.current
+      || currentScreenIds !== initialScreenIdsRef.current;
+  }, [sequence, scheduleName, scheduleMode, startTime, selectedScreenIds]);
+
+  useEffect(() => {
+    setDirty(isDirty);
+  }, [isDirty, setDirty]);
 
   const filteredContent = useMemo(() => {
     return content.filter(item => {
@@ -249,6 +283,38 @@ export default function ShowBuilder() {
         audioOverlay: item.audioOverlay,
       }));
 
+      const screenIdsToAssign = selectedScreenIds.length > 0 ? selectedScreenIds : ['screen-default'];
+      const warnings: { id: string; name: string; scheduleName: string }[] = [];
+      for (const screenId of screenIdsToAssign) {
+        const screenState = getScreenPlayerState(screenId);
+        const isOnline = screenState && (Date.now() - (screenState as any).timestamp) < 30000;
+        const isPlaying = isOnline && screenState?.isPlaying !== false;
+        if (isPlaying) {
+          const activeSchedule = getActiveScheduleForScreen(schedules, content, screenId);
+          if (activeSchedule) {
+            const screenName = screens.find(s => s.id === screenId)?.name || screenId;
+            warnings.push({ id: screenId, name: screenName, scheduleName: activeSchedule.name });
+          }
+        }
+      }
+
+      if (warnings.length > 0) {
+        setActiveScreenWarnings(warnings);
+        setPendingSave({ scheduleItems, schedules });
+        return;
+      }
+
+      performSave(scheduleItems, schedules);
+    } catch {
+      setToastMessage('Failed to save schedule.');
+      setTimeout(() => setToastMessage(null), 3000);
+    }
+  };
+
+  const performSave = (scheduleItems: ScheduleItem[], schedules: Schedule[]) => {
+    try {
+      const screenIdsToAssign = selectedScreenIds.length > 0 ? selectedScreenIds : ['screen-default'];
+
       if (editingScheduleId) {
         const updatedSchedules = schedules.map(s => {
           if (s.id === editingScheduleId) {
@@ -264,7 +330,7 @@ export default function ShowBuilder() {
           return s;
         });
         localStorage.setItem(STORAGE_KEYS.SCHEDULES, JSON.stringify(updatedSchedules));
-        const screenIdsToAssign = selectedScreenIds.length > 0 ? selectedScreenIds : ['screen-default'];
+        syncToApi('/api/schedules', updatedSchedules);
         for (const screenId of screenIdsToAssign) {
           assignScheduleToScreen(screenId, editingScheduleId);
           const screenName = screens.find(s => s.id === screenId)?.name || screenId;
@@ -289,7 +355,7 @@ export default function ShowBuilder() {
 
         const updatedSchedules = [...schedules, newSchedule];
         localStorage.setItem(STORAGE_KEYS.SCHEDULES, JSON.stringify(updatedSchedules));
-        const screenIdsToAssign = selectedScreenIds.length > 0 ? selectedScreenIds : ['screen-default'];
+        syncToApi('/api/schedules', updatedSchedules);
         for (const screenId of screenIdsToAssign) {
           assignScheduleToScreen(screenId, newSchedule.id);
           const screenName = screens.find(s => s.id === screenId)?.name || screenId;
@@ -298,6 +364,8 @@ export default function ShowBuilder() {
         addActivity({ message: `Created schedule: ${scheduleName}`, type: 'success' });
       }
 
+      setDirty(false);
+      snapshotInitialState(sequence, scheduleName, scheduleMode, startTime, selectedScreenIds);
       setToastMessage('Schedule saved successfully!');
       setTimeout(() => {
         setToastMessage(null);
@@ -309,12 +377,20 @@ export default function ShowBuilder() {
     }
   };
 
+  const confirmActiveScreenSave = () => {
+    if (!pendingSave) return;
+    const { scheduleItems, schedules } = pendingSave;
+    setActiveScreenWarnings(null);
+    setPendingSave(null);
+    performSave(scheduleItems, schedules);
+  };
+
   return (
     <div className="space-y-6 h-full flex flex-col">
       <div className="flex items-center justify-between gap-4">
         <div className="flex items-center gap-4">
           <button 
-            onClick={() => navigate('/schedule')}
+            onClick={() => requestNavigation('/schedule')}
             className="p-2 bg-white border border-gray-200 text-gray-500 rounded-lg hover:bg-gray-50 transition-colors"
           >
             <ArrowLeft className="w-4 h-4" />
@@ -618,6 +694,27 @@ export default function ShowBuilder() {
           </div>
         </div>
       </div>
+
+      {activeScreenWarnings && createPortal(
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-gray-900/50 backdrop-blur-sm animate-in fade-in">
+          <div className="bg-white rounded-xl shadow-2xl w-full max-w-md overflow-hidden flex flex-col animate-in slide-in-from-bottom-4 text-center p-6">
+            <div className="w-12 h-12 rounded-full bg-yellow-50 flex items-center justify-center mx-auto mb-4 border border-yellow-100"><AlertTriangle className="w-6 h-6 text-yellow-500" /></div>
+            <h3 className="font-heading font-semibold text-lg text-gray-900 mb-2">Screens Currently Playing</h3>
+            <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3 mb-4 text-left space-y-2">
+              {activeScreenWarnings.map(w => (
+                <p key={w.id} className="text-xs font-medium text-yellow-800">
+                  <span className="font-semibold">{w.name}</span> is playing "<span className="font-semibold">{w.scheduleName}</span>"
+                </p>
+              ))}
+            </div>
+            <p className="text-gray-500 text-sm mb-6">Assigning a new schedule will interrupt playback on these screens. Continue?</p>
+            <div className="flex items-center gap-3 w-full">
+              <button onClick={() => { setActiveScreenWarnings(null); setPendingSave(null); }} className="flex-1 py-2.5 bg-white border border-gray-200 hover:bg-gray-50 text-gray-800 rounded-lg text-sm font-medium transition-colors cursor-pointer">Cancel</button>
+              <button onClick={confirmActiveScreenSave} className="flex-1 py-2.5 bg-primary hover:bg-primary-dark text-white rounded-lg text-sm font-medium transition-colors cursor-pointer shadow-sm">Continue</button>
+            </div>
+          </div>
+        </div>, document.body
+      )}
     </div>
   );
 }
