@@ -1,14 +1,14 @@
 # JEMIMA
 
-**Joint Engine Mini Media** — Open-source digital signage and media scheduling platform.
+**Joint Engine Mini Media** ─ Open-source digital signage & media scheduling platform.
 
-Schedule images, videos, and audio across multiple screens. Play them on dedicated player instances with fullscreen playback, background audio, and real-time dashboard control. Built for mini-theaters, cafes, retail displays, lobbies, churches, and event spaces.
+> Got screens? Got content? JEMIMA ties them together. Schedule images, videos, and audio across multiple screens from one dashboard. No cloud, no subscriptions, no nonsense ─ just your media, your way.
 
 ---
 
-## Quick Start
+## ◈ Quick Start
 
-```bash
+```
 git clone https://github.com/niamhramadhaan/jemima.git
 cd jemima
 npm install
@@ -16,128 +16,211 @@ cp .env.example .env.local
 npm run dev
 ```
 
-Open `http://localhost:3000` — enter your name — complete the 3-step setup wizard.
+Open `http://localhost:3000`, enter your name, and the setup wizard walks you through the rest. Takes about 2 minutes. ヽ(・∀・)ﾉ
 
 ---
 
-## Features
+## ◈ Features
 
-### Multi-Screen Playback
+### ▸ Multi-Screen Playback
 
-- Assign schedules to specific screens from the dashboard, schedule builder, or Play Again modal
-- Each screen runs independently at `/player/screen/:screenId`
-- Per-screen controls: skip, pause, resume, mark done
-- Dashboard Now Playing carousel with per-screen view and controls
-- Default screen fallback — unassigned schedules play on the default screen automatically
+One dashboard, many screens. Each screen plays its own schedule independently ─ perfect for a café with different zones, a retail store with window vs. interior displays, or a church with lobby + sanctuary screens.
 
-### Smart Scheduling
+- Assign any schedule to any screen (or let them share)
+- Per-screen controls: skip, pause, resume, mark done ─ all from the dashboard
+- Screens run on their own URLs ─ open them on any device with a browser
 
-- Drag-and-drop schedule builder with visual/audio/image support
-- Loop mode (indefinite repeat) and Play Once mode (auto-marks done)
-- Schedule conflict detection — prevents overlapping schedules on the same screen
-- Schedule status: Ready / Now Playing / Done with visual indicators
-- Play Again: recreate completed schedules with new start time and screen assignment
+### ▸ Smart Scheduling
 
-### Background Audio
+Drag, drop, set a time, done. Build sequences of videos, images, and audio with a visual editor. Loop them forever or play once and auto-complete.
 
-- Attach audio tracks to play behind images or videos
-- Bidirectional detection — audio before or after a visual item is auto-detected as background
-- Independent mute control — background audio plays regardless of mute state
+- Conflict detection catches overlapping schedules before they cause problems
+- Status indicators: Ready → Now Playing → Done (you always know what's happening)
+- Play Again: recreate any finished schedule with one click ─ great for daily loops
 
-### Accent Color Themes
+### ▸ Background Audio
 
-- 8 preset themes: Emerald, Forest, Ocean, Royal, Crimson, Sunset, Rose, Slate
-- Live preview in Settings — click a theme, see it change instantly
-- Affects all UI elements: buttons, badges, progress bars, light rays, highlighter strokes
+Want music behind your slideshow? Add an audio track, toggle "Background" ─ it plays continuously behind your images and videos without interrupting the visual flow. Background audio has its own volume control and works regardless of the mute setting.
 
-### Player Controls
+### ▸ Accent Themes
 
-- Lock button (L key) hides all UI during screenings
-- Keyboard shortcuts: Space (play/pause), F (fullscreen), M (mute/unmute), L (lock), ? (help)
-- Auto-hide controls after 3 seconds of inactivity
-- Error overlay with auto-skip countdown on media load failure
+Eight color themes to match your brand or mood: Emerald, Forest, Ocean, Royal, Crimson, Sunset, Rose, Slate. Change it in Settings and watch the entire UI update instantly ─ buttons, badges, progress bars, even the login page light rays.
 
-### Dashboard
+### ▸ Player Controls
 
-- Now Playing carousel — cycle through screens with per-screen controls
-- Up Next — next items in the current schedule queue (follows selected screen)
-- Last Play — timeline view of completed schedules
-- Top Played Media — most frequently scheduled content
-- Quick Actions, Stats, Recent Activity widgets
-
-### Media Library
-
-- Browse, ingest, and manage video, audio, and image files
-- Bulk import from server filesystem
-- Detail view with preview and metadata
-- Bulk delete with checklist mode
-
----
-
-## Usage
-
-### Create a Schedule
-
-1. Go to **Schedules** → click **Create Schedule**
-2. Drag media items from the library panel into the sequence
-3. Set start time, mode (Loop / Play Once), and assign to screen(s)
-4. Click **Save Schedule** — it starts playing at the configured time
-
-### Play on a Screen
-
-1. Go to **Locations** → click a screen → copy the player URL
-2. Open that URL in a browser on the display device
-3. The player auto-plays the assigned schedule in fullscreen
-
-### Keyboard Shortcuts (Player)
+Running a screening? Lock the controls (L key) to hide all UI ─ no accidental pauses from a mouse bump. Keyboard shortcuts for everything:
 
 | Key | Action |
 |-----|--------|
-| Space | Play / Pause |
-| F | Toggle fullscreen |
-| M | Mute / Unmute |
-| L | Lock / Unlock controls |
-| ? | Toggle shortcuts help |
+| `Space` | Play / Pause |
+| `→` `←` | Skip next / previous |
+| `F` | Toggle fullscreen |
+| `M` | Mute / Unmute |
+| `L` | Lock / Unlock controls |
+| `?` | Show shortcuts |
+
+### ▸ Dashboard
+
+Your command center. See what's playing, what's next, and what's been played ─ all at a glance.
+
+- **Now Playing** ─ cycle through screens, each shows its active schedule with controls
+- **Up Next** ─ the next items in the queue (follows the selected screen, skips background audio)
+- **Last Play** ─ timeline of completed schedules with duration and screen info
+- **Top Played Media** ─ your most frequently scheduled content
+
+### ▸ Media Library
+
+JEMIMA reads files directly from a folder on your system ─ no uploading. Drop your media in the content folder, hit Ingest, and it appears in the library. Supports video (MP4, WebM, MKV), audio (MP3, WAV, OGG), and images (JPG, PNG, WebP, GIF, SVG).
 
 ---
 
-## Tech Stack
+## ◈ How To
 
-| Layer | Technology |
-|-------|-----------|
-| Frontend | React 19 · TypeScript · Tailwind CSS v4 |
+### ▸ Set Up Your First Screen
+
+```
+  Locations ──> Add Screen ──> Copy Player URL ──> Open on display device
+```
+
+1. Go to **Locations** in the sidebar
+2. Your default screen is already there ─ click it to see the player URL
+3. Copy that URL and open it on your display device (TV, monitor, tablet, etc.)
+4. The screen shows "No content playing" ─ that's normal, we haven't scheduled anything yet
+
+> **Tip:** Add more screens for different zones. Each screen gets its own URL and can play different content.
+
+### ▸ Add Media
+
+```
+  Films ──> Ingest ──> Select files ──> Import
+```
+
+1. Place your media files in the content folder (shown in **Settings** ─ default is `./media`)
+2. Go to **Films** → click **Ingest**
+3. Select the files you want ─ JEMIMA reads them from disk, no upload needed
+4. Click Import ─ they're now in your library, ready to schedule
+
+> **Supported:** MP4, WebM, MKV, AVI, MOV / MP3, WAV, OGG, FLAC, AAC / JPG, PNG, WebP, GIF, SVG
+
+### ▸ Create a Schedule
+
+```
+  Schedules ──> Create Schedule ──> Drag media ──> Set time ──> Assign screens ──> Save
+```
+
+1. Go to **Schedules** → click **Create Schedule**
+2. Give it a name (e.g., "Morning Playlist", "Lobby Loop")
+3. Drag media from the library panel on the right into the sequence on the left
+4. Reorder by dragging items up/down in the sequence
+5. Set the **start time** ─ when should it begin playing?
+6. Choose the **mode**:
+   - **Loop** ─ plays forever until you stop it (great for ambient displays)
+   - **Play Once** ─ plays through once, then marks as Done (great for one-time events)
+7. Assign to **screen(s)** ─ pick which screens should play this schedule
+8. Hit **Save**
+
+> **Note:** If you assign a schedule to a screen that already has one running, JEMIMA will warn you about the conflict before saving.
+
+### ▸ Play Different Content on Different Screens
+
+This is where JEMIMA shines. Say you have a café with two zones:
+
+```
+  Screen: "Window Display"  ──> Schedule: "Lunch Special Slideshow" (loop)
+  Screen: "Interior TV"     ──> Schedule: "Ambient Music Videos" (loop)
+```
+
+1. Create two screens in **Locations** (e.g., "Window Display" and "Interior TV")
+2. Create two schedules in **Schedules**
+3. Assign each schedule to its screen
+4. Open each screen's player URL on the corresponding device
+5. Both screens play independently ─ control them both from the dashboard
+
+### ▸ Add Background Audio to a Schedule
+
+```
+  Schedule Builder ──> Add audio item ──> Toggle "Background" ──> Save
+```
+
+1. In the schedule builder, add an audio file to your sequence
+2. Click the **Background** toggle on that audio item
+3. The audio now plays behind all visual content in the schedule ─ images and videos play on top while the music continues underneath
+4. Background audio loops automatically until the schedule ends
+
+> **Use case:** A photo slideshow with ambient music. The audio plays continuously while images cycle through.
+
+### ▸ Control Playback from the Dashboard
+
+```
+  Dashboard ──> Now Playing ──> ◀ ▶ screens ──> Skip / Pause / Done
+```
+
+- Use the **◀ ▶** arrows to switch between screens in the Now Playing carousel
+- **Skip** ─ jump to the next or previous item in the schedule
+- **Pause / Resume** ─ freeze playback, then pick up where you left off
+- **Mark Done** ─ stop the schedule and mark it as completed
+- **Play Again** ─ recreate a completed schedule with a new start time
+
+### ▸ Run the Player in Kiosk Mode (Electron)
+
+For dedicated display machines, build the Electron app:
+
+```
+npm run electron:build
+```
+
+This creates a standalone `.exe` (Windows) that runs fullscreen with no browser chrome. The Express server is embedded ─ no separate server process needed. Just launch the app and it plays.
+
+> **Shortcut:** `Ctrl+Shift+C` toggles between player view and config screen.
+
+### ▸ Change the Accent Theme
+
+```
+  Settings ──> Accent Theme ──> Pick a color ──> Save
+```
+
+The entire UI updates instantly ─ buttons, badges, progress bars, the login page light rays, even the sidebar highlighter stroke. Eight themes to choose from. Try them all.
+
+---
+
+## ◈ Tech Stack
+
+| Layer | What |
+|-------|------|
+| Frontend | React 19 + TypeScript + Tailwind CSS v4 |
 | Routing | React Router v7 |
 | Build | Vite 6 |
-| Backend | Express.js (media file streaming, no auth/database) |
+| Backend | Express.js (media file streaming ─ no auth, no database) |
 | Storage | Browser localStorage (per-device) |
 | Desktop | Electron 35 |
 | Icons | Lucide React |
 | Animation | Motion (Framer Motion) |
+| Magic UI | Highlighter, Light Rays |
 
 ---
 
-## Project Structure
+## ◈ Project Structure
 
 ```
 src/
 ├── components/          Layout, Sidebar, Topbar, Pagination
-│   └── ui/              Highlighter, LightRays (Magic UI)
+│   └── ui/              Highlighter, Light Rays (Magic UI)
 ├── config/              APP_CONFIG constants
 ├── hooks/               useLocalStorage
 ├── lib/                 storage, theme, utils
 ├── pages/
-│   ├── Dashboard        Overview with Now Playing carousel
+│   ├── Dashboard        Command center with Now Playing carousel
 │   ├── Player           Global fullscreen player
 │   ├── ScreenPlayer     Per-screen player (multi-screen)
-│   ├── Schedule         Schedule list with status/sort/filter
+│   ├── Schedule         Schedule list with status / sort / filter
 │   ├── ShowBuilder      Drag-and-drop sequence editor
 │   ├── Films            Media library
 │   ├── FilmDetail       Single media detail + preview
 │   ├── FilmIngest       Bulk import from filesystem
 │   ├── Locations        Venue + screen management
 │   ├── ScreenDetail     Per-screen settings + status
-│   ├── Settings         App configuration + theme picker
-│   ├── Login            Name-only login
+│   ├── Settings         App config + theme picker
+│   ├── Login            Name-only login with light rays
 │   └── QuickStart       3-step onboarding
 ├── themes.ts            8 accent color presets
 ├── types/               TypeScript interfaces
@@ -148,20 +231,20 @@ src/
 
 ---
 
-## Current Limitations
+## ◈ Current Limitations
 
-- **No database** — all data is stored in browser localStorage per device
-- **No real authentication** — login is name-only, no passwords or sessions
-- **No tests** — test infrastructure is planned for v2.1
-- **Single-user** — no multi-user collaboration or role-based access yet
+Being transparent here ─ these are known gaps, and they're all on the roadmap:
 
-These are documented in the roadmap and are open for contribution.
+- **No database** ─ data lives in browser localStorage. Clear your browser, lose your data (settings & venues survive logout though).
+- **No real authentication** ─ login is just a name. No passwords, no sessions, no multi-user.
+- **No tests** ─ we know. It's on the list. Contributions welcome.
+- **Single device** ─ data doesn't sync across devices (yet).
 
 ---
 
-## Roadmap
+## ◈ Roadmap
 
-**Current: v2.2.0** — Multi-screen platform with accent themes, per-screen scheduling, conflict detection, and player controls lock.
+**Current: v2.2.0** ─ Multi-screen platform with accent themes, conflict detection, and player lock.
 
 | Version | Focus |
 |---------|-------|
@@ -174,24 +257,26 @@ See [ROADMAP.md](./ROADMAP.md) for full details and session logs.
 
 ---
 
-## Contributing
+## ◈ Contributing
 
-See [CONTRIBUTING.md](./CONTRIBUTING.md) for guidelines.
+We'd love your help. (ﾉ◕ヮ◕)ﾉ*:・ﾟ✧
+
+See [CONTRIBUTING.md](./CONTRIBUTING.md) for how to get started ─ fork, branch, PR, the usual. If you find a bug or have an idea, open an issue.
 
 ---
 
-## License
+## ◈ License
 
 **Business Source License 1.1**
 
-Free for non-production use (development, testing, evaluation). Production use in business environments requires a commercial license. Converts to Apache 2.0 on June 23, 2029.
+Free for non-production use (dev, testing, evaluation). Production use in business environments requires a commercial license. Converts to Apache 2.0 on June 23, 2029.
 
 See [LICENSE](./LICENSE) for full terms.
 
 ---
 
-## Links
+## ◈ Links
 
-- [GitHub Repository](https://github.com/niamhramadhaan/jemima)
+- [GitHub](https://github.com/niamhramadhaan/jemima)
 - [Issues](https://github.com/niamhramadhaan/jemima/issues)
 - [Discussions](https://github.com/niamhramadhaan/jemima/discussions)
