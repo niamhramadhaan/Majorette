@@ -6,119 +6,75 @@ Schedule images, videos, and audio across multiple screens. Play them on dedicat
 
 ---
 
-## ◈ Features
+## Quick Start
 
-### ◆ Multi-Screen Playback
-
-- Assign schedules to specific screens from the dashboard, schedule builder, or Play Again modal
-- Each screen runs independently at `/player/screen/:screenId`
-- Per-screen controls: skip, pause, resume, mark done — all scoped via screen-specific signals
-- Dashboard Now Playing carousel with per-screen view and controls
-- Open Player dropdown lists all screens for quick access
-- Default screen fallback — unassigned schedules play on the default screen automatically
-
-### ◆ Smart Scheduling
-
-- Drag-and-drop schedule builder with visual/audio/image support
-- Loop mode (indefinite repeat) and Play Once mode (auto-marks done)
-- Start time picker with past-time prevention
-- Schedule status tracking: Ready / Now Playing / Done
-- Play Again: recreate completed schedules with new start time and screen assignment
-- Schedule table shows assigned screen(s) per schedule
-- Sort by newest, oldest, or next play. Filter by status.
-
-### ◆ Background Audio
-
-- Attach audio tracks to play behind images or videos
-- Bidirectional detection — audio before or after a visual item is auto-detected as background
-- Continuous playback across multiple visual items until natural end
-- Independent mute control — background audio plays regardless of mute state
-
-### ◆ Accent Color Themes
-
-- 8 preset themes: Emerald, Forest, Ocean, Royal, Crimson, Sunset, Rose, Slate
-- Live preview in Settings — click a theme, see it change instantly
-- Persists across sessions via localStorage
-- Affects all UI elements: buttons, badges, progress bars, dots, focus rings
-
-### ◆ Player Controls
-
-- Lock button (L key) hides all UI during screenings — prevents accidental display on mouse move
-- Keyboard shortcuts: Space (play/pause), F (fullscreen), M (mute/unmute), L (lock), ? (help)
-- Auto-hide controls after 3 seconds of inactivity
-- Auto-show on new media item or background audio start
-- Error overlay with auto-skip countdown on media load failure
-
-### ◆ Dashboard
-
-- Now Playing carousel — cycle through screens, each shows active schedule with controls
-- Up Next — next items in the current schedule queue
-- Last Play — history of completed schedules with duration, end time, and screen
-- Top Played Media — most frequently scheduled content
-- Quick Actions, Stats, Recent Activity widgets
-- Keyboard shortcuts reference widget
-
-### ◆ Media Library
-
-- Browse, ingest, and manage video, audio, and image files
-- Bulk import from server filesystem
-- Detail view with preview and metadata
-- Bulk delete with checklist mode and confirmation
-- Search and filter by type
-
-### ◆ Settings & Onboarding
-
-- 3-step onboarding wizard for new users
-- Venue name, timezone, content folder path configuration
-- Player mute config — 4-scenario matrix (video, audio, video+overlay, image)
-- Accent color theme picker
-- Edit mode with draft state — unsaved changes trigger discard confirmation on navigation
-- Selective logout — preserves settings and venue data
-
----
-
-## ▸ Getting Started
-
-### Prerequisites
-
-- Node.js 18+
-- npm
-
-### Install
-
-```
-git clone https://github.com/niamhramadhaan/Majorette.git
-cd Majorette
+```bash
+git clone https://github.com/niamhramadhaan/jemima.git
+cd jemima
 npm install
-```
-
-### Configure
-
-```
 cp .env.example .env.local
-```
-
-Edit `.env.local`:
-
-```
-VITE_APP_NAME=JEMIMA
-VITE_CONTENT_ROOT=D:\JEMIMA
-VITE_SERVER_URL=http://localhost:3001
-```
-
-### Run
-
-```
 npm run dev
 ```
-
-This starts the Vite dev server (port 3000) and Express content server (port 3001) concurrently.
 
 Open `http://localhost:3000` — enter your name — complete the 3-step setup wizard.
 
 ---
 
-## ▸ Usage
+## Features
+
+### Multi-Screen Playback
+
+- Assign schedules to specific screens from the dashboard, schedule builder, or Play Again modal
+- Each screen runs independently at `/player/screen/:screenId`
+- Per-screen controls: skip, pause, resume, mark done
+- Dashboard Now Playing carousel with per-screen view and controls
+- Default screen fallback — unassigned schedules play on the default screen automatically
+
+### Smart Scheduling
+
+- Drag-and-drop schedule builder with visual/audio/image support
+- Loop mode (indefinite repeat) and Play Once mode (auto-marks done)
+- Schedule conflict detection — prevents overlapping schedules on the same screen
+- Schedule status: Ready / Now Playing / Done with visual indicators
+- Play Again: recreate completed schedules with new start time and screen assignment
+
+### Background Audio
+
+- Attach audio tracks to play behind images or videos
+- Bidirectional detection — audio before or after a visual item is auto-detected as background
+- Independent mute control — background audio plays regardless of mute state
+
+### Accent Color Themes
+
+- 8 preset themes: Emerald, Forest, Ocean, Royal, Crimson, Sunset, Rose, Slate
+- Live preview in Settings — click a theme, see it change instantly
+- Affects all UI elements: buttons, badges, progress bars, light rays, highlighter strokes
+
+### Player Controls
+
+- Lock button (L key) hides all UI during screenings
+- Keyboard shortcuts: Space (play/pause), F (fullscreen), M (mute/unmute), L (lock), ? (help)
+- Auto-hide controls after 3 seconds of inactivity
+- Error overlay with auto-skip countdown on media load failure
+
+### Dashboard
+
+- Now Playing carousel — cycle through screens with per-screen controls
+- Up Next — next items in the current schedule queue (follows selected screen)
+- Last Play — timeline view of completed schedules
+- Top Played Media — most frequently scheduled content
+- Quick Actions, Stats, Recent Activity widgets
+
+### Media Library
+
+- Browse, ingest, and manage video, audio, and image files
+- Bulk import from server filesystem
+- Detail view with preview and metadata
+- Bulk delete with checklist mode
+
+---
+
+## Usage
 
 ### Create a Schedule
 
@@ -133,14 +89,6 @@ Open `http://localhost:3000` — enter your name — complete the 3-step setup w
 2. Open that URL in a browser on the display device
 3. The player auto-plays the assigned schedule in fullscreen
 
-### Control from Dashboard
-
-- **Now Playing carousel** — use ◀ ▶ arrows to switch between screens
-- **Skip** — prev/next buttons jump between items
-- **Pause / Resume** — toggle playback per screen
-- **Mark Done** — stop and complete the current schedule
-- **Play Again** — recreate a completed schedule with new start time and screen assignment
-
 ### Keyboard Shortcuts (Player)
 
 | Key | Action |
@@ -153,109 +101,30 @@ Open `http://localhost:3000` — enter your name — complete the 3-step setup w
 
 ---
 
-## ▸ Tutorial
-
-### Workflow
-
-<!-- Add workflow diagram image here -->
-<!-- Suggested: horizontal flow showing Ingest → Schedule → Screen → Player -->
-
-### 1. Add Media
-
-<!-- Add screenshot of Films page with Ingest button highlighted -->
-
-JEMIMA reads media files directly from a folder on your system — no uploading required.
-
-1. Place your media files in the content folder (path shown in **Settings**)
-2. Navigate to **Films** → click **Ingest**
-3. Supported formats:
-   - **Video:** MP4, WebM, MKV, AVI, MOV
-   - **Audio:** MP3, WAV, OGG, FLAC, AAC
-   - **Image:** JPG, PNG, WebP, GIF, SVG
-
-### 2. Create a Schedule
-
-<!-- Add screenshot of schedule builder -->
-
-A schedule defines what plays and in what order.
-
-1. Go to **Schedule** → click **New Schedule**
-2. Give it a name
-3. Drag media from your library into the timeline
-4. Set the mode:
-   - **Loop** — plays continuously
-   - **Once** — plays once, then marks as done
-5. Set duration for each item (videos use their natural length)
-
-### 3. Assign to Screens
-
-<!-- Add screenshot of screen picker -->
-
-Screens are display endpoints — each one can play a different schedule.
-
-1. Open the schedule builder
-2. Use the **Screen picker** in the builder header
-3. Select one or more screens
-4. Save the schedule
-
-Multiple screens can share the same schedule, or each screen can have its own.
-
-### 4. Background Audio
-
-<!-- Add screenshot of audio overlay toggle -->
-
-Background audio plays continuously behind your video or image content.
-
-1. Add an audio file to your schedule
-2. Toggle the **Audio Overlay** switch on that item
-3. The audio loops behind all other items until the schedule ends
-
-### 5. Open the Player
-
-<!-- Add screenshot of player in fullscreen -->
-
-The player displays your scheduled content in fullscreen.
-
-- **Default Player** — plays the active schedule (no screen assignment)
-- **Screen Player** — plays the schedule assigned to a specific screen
-- **Electron EXE** — standalone kiosk player (see v3.0)
-
-#### Keyboard Shortcuts
-
-| Key | Action |
-|-----|--------|
-| Space | Play / Pause |
-| → | Skip to next |
-| ← | Skip to previous |
-| F | Toggle fullscreen |
-| M | Mute / Unmute |
-| L | Lock controls (hide UI) |
-| ? | Show shortcuts |
-
----
-
-## ◈ Tech Stack
+## Tech Stack
 
 | Layer | Technology |
 |-------|-----------|
 | Frontend | React 19 · TypeScript · Tailwind CSS v4 |
-| Routing | React Router v7 (BrowserRouter) |
+| Routing | React Router v7 |
 | Build | Vite 6 |
 | Backend | Express.js (media file streaming, no auth/database) |
 | Storage | Browser localStorage (per-device) |
+| Desktop | Electron 35 |
 | Icons | Lucide React |
-| Animation | Framer Motion |
+| Animation | Motion (Framer Motion) |
 
 ---
 
-## ◈ Project Structure
+## Project Structure
 
 ```
 src/
 ├── components/          Layout, Sidebar, Topbar, Pagination
+│   └── ui/              Highlighter, LightRays (Magic UI)
 ├── config/              APP_CONFIG constants
 ├── hooks/               useLocalStorage
-├── lib/                 storage, theme, utils, mockData
+├── lib/                 storage, theme, utils
 ├── pages/
 │   ├── Dashboard        Overview with Now Playing carousel
 │   ├── Player           Global fullscreen player
@@ -279,9 +148,20 @@ src/
 
 ---
 
-## ◈ Roadmap
+## Current Limitations
 
-**Current: v2.0** — Multi-screen platform with accent themes, per-screen scheduling, and player controls lock.
+- **No database** — all data is stored in browser localStorage per device
+- **No real authentication** — login is name-only, no passwords or sessions
+- **No tests** — test infrastructure is planned for v2.1
+- **Single-user** — no multi-user collaboration or role-based access yet
+
+These are documented in the roadmap and are open for contribution.
+
+---
+
+## Roadmap
+
+**Current: v2.2.0** — Multi-screen platform with accent themes, per-screen scheduling, conflict detection, and player controls lock.
 
 | Version | Focus |
 |---------|-------|
@@ -294,7 +174,13 @@ See [ROADMAP.md](./ROADMAP.md) for full details and session logs.
 
 ---
 
-## ◈ License
+## Contributing
+
+See [CONTRIBUTING.md](./CONTRIBUTING.md) for guidelines.
+
+---
+
+## License
 
 **Business Source License 1.1**
 
@@ -304,8 +190,8 @@ See [LICENSE](./LICENSE) for full terms.
 
 ---
 
-## ▸ Links
+## Links
 
-- [GitHub Repository](https://github.com/niamhramadhaan/Majorette)
-- [Issues](https://github.com/niamhramadhaan/Majorette/issues)
-- [Discussions](https://github.com/niamhramadhaan/Majorette/discussions)
+- [GitHub Repository](https://github.com/niamhramadhaan/jemima)
+- [Issues](https://github.com/niamhramadhaan/jemima/issues)
+- [Discussions](https://github.com/niamhramadhaan/jemima/discussions)

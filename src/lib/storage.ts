@@ -1,4 +1,4 @@
-import type { LocalContent, Schedule, Venue, ScreenConfig, AppSettings, ActivityLog, ScheduleStatus } from '../types';
+import type { LocalContent, Schedule, ScheduleItem, ScheduleMode, Venue, ScreenConfig, AppSettings, ActivityLog, ScheduleStatus } from '../types';
 import { APP_CONFIG } from '../config/app';
 
 // Fire-and-forget sync to server API for cross-context persistence
@@ -665,6 +665,61 @@ export function getUpcomingScheduleForScreen(schedules: Schedule[], content: Loc
   const assignedIds = getAssignedScheduleIds();
   const unassigned = schedules.filter(s => !assignedIds.has(s.id));
   return getUpcomingSchedule(unassigned, content);
+}
+
+// ─── Schedule Conflict Detection ──────────────────────────────────────────────
+
+export interface ScheduleConflict {
+  screenId: string;
+  screenName: string;
+  conflictingScheduleName: string;
+  conflictingScheduleStart: string;
+  conflictingScheduleEnd: string | null;
+}
+
+export function getScheduleConflicts(
+  newStartTime: string,
+  newItems: ScheduleItem[],
+  newMode: ScheduleMode,
+  targetScreenIds: string[],
+  existingSchedules: Schedule[],
+  content: LocalContent[],
+  excludeScheduleId?: string
+): ScheduleConflict[] {
+  const conflicts: ScheduleConflict[] = [];
+  const newStart = new Date(newStartTime).getTime();
+  const newDuration = newItems.reduce((sum, item) => {
+    const c = content.find(ci => ci.id === item.contentId);
+    return sum + (item.duration || c?.duration || 0);
+  }, 0);
+  const newEnd = newMode === 'loop' ? Infinity : newStart + newDuration * 1000;
+
+  for (const screenId of targetScreenIds) {
+    const screen = getScreenById(screenId);
+    if (!screen?.scheduleId) continue;
+    if (excludeScheduleId && screen.scheduleId === excludeScheduleId) continue;
+
+    const assigned = existingSchedules.find(s => s.id === screen.scheduleId && s.status !== 'done');
+    if (!assigned) continue;
+
+    const existStart = new Date(assigned.startTime).getTime();
+    const existDuration = assigned.items.reduce((sum, item) => {
+      const c = content.find(ci => ci.id === item.contentId);
+      return sum + (item.duration || c?.duration || 0);
+    }, 0);
+    const existEnd = assigned.mode === 'loop' ? Infinity : existStart + existDuration * 1000;
+
+    if (newStart < existEnd && existStart < newEnd) {
+      conflicts.push({
+        screenId,
+        screenName: screen.name,
+        conflictingScheduleName: assigned.name,
+        conflictingScheduleStart: assigned.startTime,
+        conflictingScheduleEnd: assigned.mode === 'loop' ? null : new Date(existEnd).toISOString(),
+      });
+    }
+  }
+  return conflicts;
 }
 
 function screenSignalKey(base: string, screenId: string): string {

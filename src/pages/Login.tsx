@@ -3,6 +3,8 @@ import { useNavigate } from 'react-router-dom';
 import { User, AlertCircle } from 'lucide-react';
 import { APP_CONFIG } from '../config/app';
 import { saveUserName } from '../lib/storage';
+import { hexToRgba, getThemeColor } from '../lib/utils';
+import { LightRays } from '../components/ui/light-rays';
 
 export default function Login() {
   const navigate = useNavigate();
@@ -33,46 +35,14 @@ export default function Login() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-[#f0f9f4] border-none relative overflow-hidden">
-      
-      <style>
-        {`
-          @keyframes wave-animation {
-            0% { transform: translateX(0) translateZ(0) scaleY(1); }
-            50% { transform: translateX(-25%) translateZ(0) scaleY(0.9); }
-            100% { transform: translateX(-50%) translateZ(0) scaleY(1); }
-          }
-          .wave-bg {
-            position: absolute;
-            bottom: 0;
-            left: 0;
-            width: 200%;
-            height: 100%;
-            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 1440 320'%3E%3Cpath fill='%230E7B35' fill-opacity='0.08' d='M0,192L48,197.3C96,203,192,213,288,229.3C384,245,480,267,576,250.7C672,235,768,181,864,181.3C960,181,1056,235,1152,234.7C1248,235,1344,181,1392,154.7L1440,128L1440,320L1392,320C1344,320,1248,320,1152,320C1056,320,960,320,864,320C768,320,672,320,576,320C480,320,384,320,288,320C192,320,96,320,48,320L0,320Z'%3E%3C/path%3E%3C/svg%3E");
-            background-size: 50% 100%;
-            background-repeat: repeat-x;
-            background-position: bottom;
-            animation: wave-animation 15s infinite linear;
-          }
-          .wave-bg-2 {
-            position: absolute;
-            bottom: 0;
-            left: 0;
-            width: 200%;
-            height: 100%;
-            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 1440 320'%3E%3Cpath fill='%230E7B35' fill-opacity='0.05' d='M0,256L48,229.3C96,203,192,149,288,154.7C384,160,480,224,576,218.7C672,213,768,139,864,128C960,117,1056,171,1152,197.3C1248,224,1344,224,1392,224L1440,224L1440,320L1392,320C1344,320,1248,320,1152,320C1056,320,960,320,864,320C768,320,672,320,576,320C480,320,384,320,288,320C192,320,96,320,48,320L0,320Z'%3E%3C/path%3E%3C/svg%3E");
-            background-size: 50% 100%;
-            background-repeat: repeat-x;
-            background-position: bottom;
-            animation: wave-animation 20s infinite linear reverse;
-          }
-        `}
-      </style>
-
-      <div className="absolute inset-0 z-0 overflow-hidden">
-        <div className="wave-bg-2"></div>
-        <div className="wave-bg"></div>
-      </div>
+    <div className="min-h-screen flex items-center justify-center bg-[#f0f9f4] relative overflow-hidden">
+      <LightRays
+        color={hexToRgba(getThemeColor('--color-primary'), 0.25)}
+        count={8}
+        blur={40}
+        speed={12}
+        length="80vh"
+      />
 
       <div className="w-full max-w-md card p-8 sm:p-10 relative z-10 shadow-2xl shadow-primary/5 bg-white/90 backdrop-blur-xl border border-white/50">
         

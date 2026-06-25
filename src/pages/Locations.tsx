@@ -16,8 +16,13 @@ export default function Locations() {
   const [screenToDelete, setScreenToDelete] = useState<ScreenConfig | null>(null);
   const [schedules, setSchedules] = useState<Schedule[]>([]);
   const [content, setContent] = useState<LocalContent[]>([]);
+  const [, setTick] = useState(0);
 
   useEffect(() => { loadVenues(); loadData(); }, []);
+  useEffect(() => {
+    const interval = setInterval(() => setTick(t => t + 1), 5000);
+    return () => clearInterval(interval);
+  }, []);
 
   const loadData = () => {
     try {

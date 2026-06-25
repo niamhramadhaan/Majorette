@@ -4,5 +4,16 @@ dist/
 coverage/
 .DS_Store
 *.log
+*.tsbuildinfo
 .env*
 !.env.example
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Tooling
+.agents/
+skills-lock.json

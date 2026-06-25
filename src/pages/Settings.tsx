@@ -178,7 +178,7 @@ export default function Settings() {
                   <input type="text" value={current.contentRoot}
                     readOnly={!isEditMode}
                     onChange={(e) => setDraftSettings({ ...draftSettings, contentRoot: e.target.value })}
-                    placeholder="D:\JEMIMA"
+                    placeholder="./media"
                     className={cn("flex-1 rounded-lg px-3 py-2 text-sm font-mono transition-colors",
                       isEditMode
                         ? "bg-white border border-gray-200 focus:outline-none focus:ring-1 focus:ring-primary focus:border-primary"

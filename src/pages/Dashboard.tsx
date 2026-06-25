@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { Play, Pause, Plus, Calendar, ExternalLink, Music, Image as ImageIcon, Film, Clock, SkipBack, SkipForward, CheckCircle, RotateCcw, X, CheckCircle2, History, Keyboard, Monitor, Check, ChevronsUpDown, ChevronLeft, ChevronRight, ChevronDown, AlertTriangle } from 'lucide-react';
 import { cn } from '../lib/utils';
 import { createPortal } from 'react-dom';
-import { STORAGE_KEYS, getActivities, getThumbnailUrl, getActiveSchedule, getUpcomingSchedule, getScheduleStartTime, emitSkipSignal, emitResumeSignal, emitDoneSignal, getPlayerState, getScheduleElapsed, getCurrentItemIndex, generateId, getTimestamp, getScheduleTotalDuration, resolveFilePath, getAllScreens, getScreenPlayerState, getActiveScheduleForScreen, assignScheduleToScreen, emitSkipSignalForScreen, emitPauseSignalForScreen, emitResumeSignalForScreen, emitDoneSignalForScreen, getUpcomingScheduleForScreen, addActivity, syncToApi } from '../lib/storage';
+import { STORAGE_KEYS, getActivities, getThumbnailUrl, getActiveSchedule, getUpcomingSchedule, getScheduleStartTime, emitSkipSignal, emitResumeSignal, emitDoneSignal, getPlayerState, getScheduleElapsed, getCurrentItemIndex, generateId, getTimestamp, getScheduleTotalDuration, resolveFilePath, getAllScreens, getScreenPlayerState, getActiveScheduleForScreen, assignScheduleToScreen, emitSkipSignalForScreen, emitPauseSignalForScreen, emitResumeSignalForScreen, emitDoneSignalForScreen, getUpcomingScheduleForScreen, addActivity, syncToApi, getScheduleConflicts, type ScheduleConflict } from '../lib/storage';
 import type { LocalContent, Schedule, ActivityLog, ScheduleItem, ScreenConfig } from '../types';
 
 function toDatetimeLocal(isoString: string): string {
@@ -67,6 +67,7 @@ export default function Dashboard() {
   const [recreateScreenIds, setRecreateScreenIds] = useState<string[]>(['screen-default']);
   const [showRecreateScreenDropdown, setShowRecreateScreenDropdown] = useState(false);
   const [activeScreenWarnings, setActiveScreenWarnings] = useState<{ id: string; name: string; scheduleName: string }[] | null>(null);
+  const [conflictWarnings, setConflictWarnings] = useState<ScheduleConflict[] | null>(null);
   const [pendingRecreate, setPendingRecreate] = useState<{ newSchedule: Schedule } | null>(null);
   const [currentScreenIndex, setCurrentScreenIndex] = useState(0);
   const [showOpenPlayerDropdown, setShowOpenPlayerDropdown] = useState(false);
@@ -133,13 +134,20 @@ export default function Dashboard() {
   const currentItemProgress = currentItemDuration > 0
     ? Math.min((currentItemResult!.offset / currentItemDuration) * 100, 100)
     : 0;
+  const selectedScreen = screens.length > 0 ? screens[Math.min(currentScreenIndex, screens.length - 1)] : null;
+  const selectedScreenSchedule = selectedScreen ? getActiveScheduleForScreen(schedules, content, selectedScreen.id) : activeSchedule;
+  const selectedScreenItems = selectedScreenSchedule?.items || [];
+  const selectedScreenState = selectedScreen ? getScreenPlayerState(selectedScreen.id) : playerState;
+  const selectedScreenPauseElapsed = selectedScreenState?.pauseStart ? (Date.now() - selectedScreenState.pauseStart) / 1000 : 0;
+  const selectedScreenRawElapsed = selectedScreenSchedule ? getScheduleElapsed(selectedScreenSchedule, content) / 1000 : 0;
+  const selectedScreenElapsed = selectedScreenState ? selectedScreenRawElapsed - selectedScreenPauseElapsed + (selectedScreenState.manualOffset || 0) : selectedScreenRawElapsed;
+  const selectedScreenItemResult = selectedScreenSchedule ? getCurrentItemIndex(selectedScreenSchedule, content, selectedScreenElapsed) : null;
   const nextItems = (() => {
-    const currentIdx = currentItemResult?.index ?? 0;
-    const after = scheduleItems.slice(currentIdx + 1, currentIdx + 4);
-    // In loop mode, wrap around to beginning if near the end
-    if (activeSchedule?.mode === 'loop' && after.length < 3) {
+    const currentIdx = selectedScreenItemResult?.index ?? 0;
+    const after = selectedScreenItems.slice(currentIdx + 1, currentIdx + 4);
+    if (selectedScreenSchedule?.mode === 'loop' && after.length < 3) {
       const remaining = 3 - after.length;
-      const wrapped = scheduleItems.slice(0, remaining);
+      const wrapped = selectedScreenItems.slice(0, remaining);
       return [...after, ...wrapped].map(item => {
         const contentItem = content.find(c => c.id === item.contentId);
         return { ...item, content: contentItem };
@@ -150,7 +158,7 @@ export default function Dashboard() {
       return { ...item, content: contentItem };
     });
   })();
-  const isLooping = activeSchedule?.mode === 'loop' && scheduleItems.length > 1 && (currentItemResult?.index ?? 0) >= scheduleItems.length - 1;
+  const isLooping = selectedScreenSchedule?.mode === 'loop' && selectedScreenItems.length > 1 && (selectedScreenItemResult?.index ?? 0) >= selectedScreenItems.length - 1;
 
   const getUpcomingStart = (): Date | null => {
     if (!upcomingSchedule) return null;
@@ -255,6 +263,12 @@ export default function Dashboard() {
     };
 
     const screenIdsToAssign = recreateScreenIds.length > 0 ? recreateScreenIds : ['screen-default'];
+    const conflicts = getScheduleConflicts(recreateStartTime, recreateFromSchedule.items, recreateMode, screenIdsToAssign, schedules, content);
+    if (conflicts.length > 0) {
+      setConflictWarnings(conflicts);
+      return;
+    }
+
     const warnings: { id: string; name: string; scheduleName: string }[] = [];
     for (const screenId of screenIdsToAssign) {
       const screenState = getScreenPlayerState(screenId);
@@ -443,7 +457,7 @@ export default function Dashboard() {
                               <Play className="w-4 h-4" />
                             </button>
                           )}
-                          <button onClick={() => { setDoneModalSchedule(screenSchedule); }} className="p-1.5 text-gray-400 hover:text-primary transition-all active:scale-90" title="Mark Done">
+                          <button onClick={() => { setDoneModalSchedule(screenSchedule); }} className="p-1.5 text-green-500 hover:text-red-500 transition-all active:scale-90" title="Mark Done">
                             <CheckCircle className="w-4 h-4" />
                           </button>
                         </div>
@@ -542,7 +556,7 @@ export default function Dashboard() {
                         ) : (
                           <button onClick={() => emitResumeSignal()} className="p-1.5 text-gray-400 hover:text-primary transition-all active:scale-90" title="Resume"><Play className="w-4 h-4" /></button>
                         )}
-                        <button onClick={() => setDoneModalSchedule(activeSchedule)} className="p-1.5 text-gray-400 hover:text-primary transition-all active:scale-90" title="Mark Done"><CheckCircle className="w-4 h-4" /></button>
+                        <button onClick={() => setDoneModalSchedule(activeSchedule)} className="p-1.5 text-green-500 hover:text-red-500 transition-all active:scale-90" title="Mark Done"><CheckCircle className="w-4 h-4" /></button>
                       </div>
                     </div>
                   </div>
@@ -564,7 +578,7 @@ export default function Dashboard() {
               </h2>
               <div className="space-y-3">
                 {nextItems.map((item, index) => {
-                  const isWrapped = index >= (scheduleItems.length - 1 - (currentItemResult?.index ?? 0));
+                  const isWrapped = index >= (selectedScreenItems.length - 1 - (selectedScreenItemResult?.index ?? 0));
                   return (
                     <div key={`${item.contentId}-${index}`} className={cn("flex items-center gap-4 p-3 rounded-xl transition-colors", isWrapped ? "bg-primary/5 hover:bg-primary/10" : "bg-gray-50 hover:bg-gray-100")}>
                       <span className="w-8 h-8 bg-gray-200 rounded-full flex items-center justify-center text-sm font-bold text-gray-500">{index + 2}</span>
@@ -589,25 +603,42 @@ export default function Dashboard() {
 
           {lastPlayedSchedules.length > 0 && (
             <div className="card p-6">
-              <h3 className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3 flex items-center gap-2">
-                <History className="w-4 h-4" /> Last Play
+              <h3 className="text-sm font-heading font-semibold text-gray-800 mb-4 flex items-center gap-2">
+                <History className="w-4 h-4 text-gray-400" /> Last Play
               </h3>
-              <div className="space-y-3">
-                {lastPlayedSchedules.slice(0, 5).map(schedule => {
-                  const assignedScreens = screens.filter(s => s.scheduleId === schedule.id);
-                  const screenLabel = assignedScreens.length === 0 ? 'Default' : assignedScreens.length === 1 ? assignedScreens[0].name : `${assignedScreens.length} screens`;
-                  return (
-                    <div key={schedule.id} className="flex items-center justify-between gap-3">
-                      <div className="min-w-0">
-                        <p className="text-sm font-semibold text-gray-900 truncate">{schedule.name}</p>
-                        <p className="text-xs text-gray-500 mt-0.5">
-                          Ended {getRelativeTime(schedule.updatedAt)} <span className="text-gray-300 mx-0.5">&middot;</span> {screenLabel} <span className="text-gray-300 mx-0.5">&middot;</span> {schedule.mode === 'loop' ? 'Loop' : 'Once'}
-                        </p>
+              <div className="relative">
+                <div className="absolute left-[5px] top-2 bottom-2 w-px bg-gray-200" />
+                <div className="space-y-4">
+                  {lastPlayedSchedules.slice(0, 5).map(schedule => {
+                    const assignedScreens = screens.filter(s => s.scheduleId === schedule.id);
+                    const screenLabel = assignedScreens.length === 0 ? 'Default' : assignedScreens.length === 1 ? assignedScreens[0].name : `${assignedScreens.length} screens`;
+                    return (
+                      <div key={schedule.id} className="relative pl-6 group">
+                        <div className={cn(
+                          "absolute left-0 top-1.5 w-[11px] h-[11px] rounded-full border-2 border-white ring-1 ring-gray-200",
+                          schedule.mode === 'loop' ? "bg-primary" : "bg-gray-400"
+                        )} />
+                        <div className="flex items-center justify-between gap-2">
+                          <p className="text-sm font-semibold text-gray-900 truncate">{schedule.name}</p>
+                          <span className="text-xs text-gray-400 font-mono flex-shrink-0">{formatElapsed(getScheduleTotalDuration(schedule, content))}</span>
+                        </div>
+                        <div className="flex items-center gap-1.5 mt-1 flex-wrap">
+                          <span className="flex items-center gap-1 text-[11px] text-gray-500">
+                            <Monitor className="w-3 h-3" /> {screenLabel}
+                          </span>
+                          <span className="text-gray-300">&middot;</span>
+                          <span className={cn("text-[10px] font-semibold px-1.5 py-0.5 rounded",
+                            schedule.mode === 'loop' ? "bg-primary/10 text-primary" : "bg-gray-100 text-gray-500"
+                          )}>
+                            {schedule.mode === 'loop' ? '↻ Loop' : 'Once'}
+                          </span>
+                          <span className="text-gray-300">&middot;</span>
+                          <span className="text-[11px] text-gray-400">{getRelativeTime(schedule.updatedAt)}</span>
+                        </div>
                       </div>
-                      <span className="text-xs text-gray-400 font-mono flex-shrink-0">{formatElapsed(getScheduleTotalDuration(schedule, content))}</span>
-                    </div>
-                  );
-                })}
+                    );
+                  })}
+                </div>
               </div>
             </div>
           )}
@@ -728,7 +759,7 @@ export default function Dashboard() {
             </div>
             <div className="p-4 border-t border-gray-100 bg-gray-50 flex justify-end gap-3">
               <button onClick={() => setDoneModalSchedule(null)} className="px-4 py-2 text-sm font-medium text-gray-600 hover:bg-gray-200 bg-white border border-gray-200 rounded-lg transition-colors">Cancel</button>
-              <button onClick={() => { setSchedules(emitDoneSignal(schedules, doneModalSchedule.id)); setDoneModalSchedule(null); showToast('Schedule marked as done'); }} className="px-5 py-2 text-sm font-medium text-white bg-primary hover:bg-primary-dark rounded-lg transition-colors shadow-sm">
+              <button onClick={() => { setSchedules(emitDoneSignal(schedules, doneModalSchedule.id)); setDoneModalSchedule(null); showToast('Schedule marked as done'); }} className="px-5 py-2 text-sm font-medium text-white bg-green-600 hover:bg-red-500 rounded-lg transition-colors shadow-sm">
                 Mark Done
               </button>
             </div>
@@ -857,6 +888,30 @@ export default function Dashboard() {
               <button onClick={() => { setActiveScreenWarnings(null); setPendingRecreate(null); }} className="flex-1 py-2.5 bg-white border border-gray-200 hover:bg-gray-50 text-gray-800 rounded-lg text-sm font-medium transition-colors cursor-pointer">Cancel</button>
               <button onClick={confirmActiveScreenRecreate} className="flex-1 py-2.5 bg-primary hover:bg-primary-dark text-white rounded-lg text-sm font-medium transition-colors cursor-pointer shadow-sm">Continue</button>
             </div>
+          </div>
+        </div>, document.body
+      )}
+
+      {conflictWarnings && createPortal(
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-gray-900/50 backdrop-blur-sm animate-in fade-in">
+          <div className="bg-white rounded-xl shadow-2xl w-full max-w-md overflow-hidden flex flex-col animate-in slide-in-from-bottom-4 text-center p-6">
+            <div className="w-12 h-12 rounded-full bg-red-50 flex items-center justify-center mx-auto mb-4 border border-red-100"><AlertTriangle className="w-6 h-6 text-red-500" /></div>
+            <h3 className="font-heading font-semibold text-lg text-gray-900 mb-2">Schedule Conflict</h3>
+            <div className="bg-red-50 border border-red-200 rounded-lg p-3 mb-4 text-left space-y-3">
+              {conflictWarnings.map(w => (
+                <div key={w.screenId}>
+                  <p className="text-xs font-semibold text-red-800">
+                    {w.screenName} — "<span className="font-bold">{w.conflictingScheduleName}</span>"
+                  </p>
+                  <p className="text-[11px] text-red-600 mt-0.5">
+                    {toDatetimeLocal(w.conflictingScheduleStart)}
+                    {w.conflictingScheduleEnd ? ` — ${toDatetimeLocal(w.conflictingScheduleEnd)}` : ' — Plays until stopped'}
+                  </p>
+                </div>
+              ))}
+            </div>
+            <p className="text-gray-500 text-sm mb-6">Remove the conflicting screens or change the start time to continue.</p>
+            <button onClick={() => setConflictWarnings(null)} className="w-full py-2.5 bg-primary hover:bg-primary-dark text-white rounded-lg text-sm font-medium transition-colors cursor-pointer shadow-sm">Go Back</button>
           </div>
         </div>, document.body
       )}
