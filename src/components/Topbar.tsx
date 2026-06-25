@@ -165,11 +165,7 @@ export default function Topbar({ setSidebarOpen, requestNavigation, setDirty }: 
 
   const performLogout = () => {
     clearUserName();
-    Object.values(STORAGE_KEYS).forEach(key => {
-      if (key !== STORAGE_KEYS.SETTINGS && key !== STORAGE_KEYS.VENUES) {
-        localStorage.removeItem(key);
-      }
-    });
+    localStorage.removeItem(STORAGE_KEYS.ACTIVITY);
     setDirty(false);
   };
 
