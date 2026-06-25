@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { Play, Pause, Plus, Calendar, ExternalLink, Music, Image as ImageIcon, Film, Clock, SkipBack, SkipForward, CheckCircle, RotateCcw, X, CheckCircle2, History, Keyboard, Monitor, Check, ChevronsUpDown, ChevronLeft, ChevronRight, ChevronDown, AlertTriangle } from 'lucide-react';
 import { cn } from '../lib/utils';
 import { createPortal } from 'react-dom';
-import { STORAGE_KEYS, getActivities, getThumbnailUrl, getActiveSchedule, getUpcomingSchedule, getScheduleStartTime, emitSkipSignal, emitResumeSignal, emitDoneSignal, getPlayerState, getScheduleElapsed, getCurrentItemIndex, generateId, getTimestamp, getScheduleTotalDuration, resolveFilePath, getAllScreens, getScreenPlayerState, getActiveScheduleForScreen, assignScheduleToScreen, emitSkipSignalForScreen, emitPauseSignalForScreen, emitResumeSignalForScreen, emitDoneSignalForScreen, getUpcomingScheduleForScreen, addActivity, syncToApi, getScheduleConflicts, type ScheduleConflict } from '../lib/storage';
+import { STORAGE_KEYS, getActivities, getThumbnailUrl, getActiveSchedule, getUpcomingSchedule, getScheduleStartTime, emitSkipSignal, emitResumeSignal, emitDoneSignal, getPlayerState, getScheduleElapsed, getCurrentItemIndex, generateId, getTimestamp, getScheduleTotalDuration, resolveFilePath, getAllScreens, getScreenPlayerState, getActiveScheduleForScreen, assignScheduleToScreen, emitSkipSignalForScreen, emitPauseSignalForScreen, emitResumeSignalForScreen, emitDoneSignalForScreen, getUpcomingScheduleForScreen, addActivity, syncToApi, getScheduleConflicts, isOverlayItem, type ScheduleConflict } from '../lib/storage';
 import type { LocalContent, Schedule, ActivityLog, ScheduleItem, ScreenConfig } from '../types';
 
 function toDatetimeLocal(isoString: string): string {
@@ -144,19 +144,22 @@ export default function Dashboard() {
   const selectedScreenItemResult = selectedScreenSchedule ? getCurrentItemIndex(selectedScreenSchedule, content, selectedScreenElapsed) : null;
   const nextItems = (() => {
     const currentIdx = selectedScreenItemResult?.index ?? 0;
-    const after = selectedScreenItems.slice(currentIdx + 1, currentIdx + 4);
-    if (selectedScreenSchedule?.mode === 'loop' && after.length < 3) {
-      const remaining = 3 - after.length;
-      const wrapped = selectedScreenItems.slice(0, remaining);
-      return [...after, ...wrapped].map(item => {
-        const contentItem = content.find(c => c.id === item.contentId);
-        return { ...item, content: contentItem };
+    const schedule = selectedScreenSchedule;
+    if (!schedule) return [];
+    const total = selectedScreenItems.length;
+    const visual: { item: ScheduleItem; content: LocalContent | undefined; originalIdx: number; wrapped: boolean }[] = [];
+    for (let offset = 1; offset < total && visual.length < 3; offset++) {
+      const idx = (currentIdx + offset) % total;
+      if (isOverlayItem(schedule, content, idx)) continue;
+      const item = selectedScreenItems[idx];
+      visual.push({
+        item,
+        content: content.find(c => c.id === item.contentId),
+        originalIdx: idx,
+        wrapped: idx <= currentIdx,
       });
     }
-    return after.map(item => {
-      const contentItem = content.find(c => c.id === item.contentId);
-      return { ...item, content: contentItem };
-    });
+    return visual;
   })();
   const isLooping = selectedScreenSchedule?.mode === 'loop' && selectedScreenItems.length > 1 && (selectedScreenItemResult?.index ?? 0) >= selectedScreenItems.length - 1;
 
@@ -577,23 +580,22 @@ export default function Dashboard() {
                 {isLooping && <span className="px-2 py-0.5 bg-primary/10 text-primary-dark text-[10px] font-semibold rounded-full">↻ Loop</span>}
               </h2>
               <div className="space-y-3">
-                {nextItems.map((item, index) => {
-                  const isWrapped = index >= (selectedScreenItems.length - 1 - (selectedScreenItemResult?.index ?? 0));
+                {nextItems.map((entry, index) => {
                   return (
-                    <div key={`${item.contentId}-${index}`} className={cn("flex items-center gap-4 p-3 rounded-xl transition-colors", isWrapped ? "bg-primary/5 hover:bg-primary/10" : "bg-gray-50 hover:bg-gray-100")}>
+                    <div key={`${entry.item.contentId}-${entry.originalIdx}`} className={cn("flex items-center gap-4 p-3 rounded-xl transition-colors", entry.wrapped ? "bg-primary/5 hover:bg-primary/10" : "bg-gray-50 hover:bg-gray-100")}>
                       <span className="w-8 h-8 bg-gray-200 rounded-full flex items-center justify-center text-sm font-bold text-gray-500">{index + 2}</span>
                       <div className="w-12 h-8 bg-gray-200 rounded flex items-center justify-center flex-shrink-0 overflow-hidden">
-                        {item.content && getThumbnailUrl(item.content) ? (
-                          <img src={getThumbnailUrl(item.content)!} alt="" className="w-full h-full object-cover" />
+                        {entry.content && getThumbnailUrl(entry.content) ? (
+                          <img src={getThumbnailUrl(entry.content)!} alt="" className="w-full h-full object-cover" />
                         ) : (
-                          getContentIcon(item.content?.type)
+                          getContentIcon(entry.content?.type)
                         )}
                       </div>
                       <div className="flex-1">
-                        <p className="text-sm font-medium text-gray-700">{item.content?.title || 'Unknown'}</p>
-                        <p className="text-xs text-gray-500 capitalize">{item.content?.type} - {item.duration || item.content?.duration}s</p>
+                        <p className="text-sm font-medium text-gray-700">{entry.content?.title || 'Unknown'}</p>
+                        <p className="text-xs text-gray-500 capitalize">{entry.content?.type} - {entry.item.duration || entry.content?.duration}s</p>
                       </div>
-                      {isWrapped && <span className="text-[10px] text-primary font-medium">↻ Loop</span>}
+                      {entry.wrapped && <span className="text-[10px] text-primary font-medium">↻ Loop</span>}
                     </div>
                   );
                 })}

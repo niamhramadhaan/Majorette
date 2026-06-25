@@ -351,7 +351,7 @@ export function getScheduleTotalDuration(schedule: Schedule, content: LocalConte
   }, 0);
 }
 
-function isOverlayItem(schedule: Schedule, content: LocalContent[], index: number): boolean {
+export function isOverlayItem(schedule: Schedule, content: LocalContent[], index: number): boolean {
   const item = schedule.items[index];
   if (!item) return false;
   if (item.audioOverlay) return true;
