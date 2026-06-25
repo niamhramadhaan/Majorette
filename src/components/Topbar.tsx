@@ -360,13 +360,13 @@ export default function Topbar({ setSidebarOpen, requestNavigation, setDirty }: 
                </button>
             </div>
             <div className="p-6 space-y-5 overflow-y-auto max-h-[70vh]">
-               <div className="flex items-center gap-4">
+               <div className="flex flex-col items-center text-center pt-2">
                  <div className="relative">
-                    <img src="/logo.png" alt="JEMIMA" className="w-16 h-16 rounded-full bg-secondary/20 border border-secondary/50 object-cover" />
+                    <img src="/logo.png" alt="JEMIMA" className="w-24 h-24 rounded-full bg-secondary/20 border-2 border-secondary/50 object-cover shadow-md" />
                  </div>
-                 <div>
-                   <h4 className="font-medium text-gray-900">{userName || 'User'}</h4>
-                   <p className="text-sm text-gray-500">JEMIMA Dashboard</p>
+                 <div className="mt-3">
+                   <h4 className="text-lg font-semibold text-gray-900">{userName || 'User'}</h4>
+                   <p className="text-sm text-gray-500 mt-0.5">JEMIMA Dashboard</p>
                  </div>
                </div>
                <div className="space-y-4 pt-4 border-t border-gray-100">

@@ -25,7 +25,7 @@ import { cn } from "../lib/utils";
 import { useNavigate } from "react-router-dom";
 import { createPortal } from "react-dom";
 import { Pagination } from "../components/Pagination";
-import { STORAGE_KEYS, getActivities, addActivity, getActiveSchedule, getScheduleTotalDuration, generateId, getTimestamp, getAllScreens, assignScheduleToScreen, getActiveScheduleForScreen, getScreenPlayerState } from "../lib/storage";
+import { STORAGE_KEYS, getActivities, addActivity, getActiveSchedule, getScheduleTotalDuration, getScheduleStartTime, generateId, getTimestamp, getAllScreens, assignScheduleToScreen, getActiveScheduleForScreen, getScreenPlayerState, getScheduleConflicts, type ScheduleConflict } from "../lib/storage";
 import type { Schedule, LocalContent, ScheduleStatus, ScreenConfig } from "../types";
 
 function toDatetimeLocal(isoString: string): string {
@@ -75,6 +75,7 @@ export default function Schedule() {
   const [recreateScreenIds, setRecreateScreenIds] = useState<string[]>(['screen-default']);
   const [showRecreateScreenDropdown, setShowRecreateScreenDropdown] = useState(false);
   const [activeScreenWarnings, setActiveScreenWarnings] = useState<{ id: string; name: string; scheduleName: string }[] | null>(null);
+  const [conflictWarnings, setConflictWarnings] = useState<ScheduleConflict[] | null>(null);
   const [pendingRecreate, setPendingRecreate] = useState<{ newSchedule: Schedule } | null>(null);
   const [viewMode, setViewMode] = useState<'list' | 'day'>('list');
   const [selectedDate, setSelectedDate] = useState(() => new Date().toISOString().split('T')[0]);
@@ -122,9 +123,18 @@ export default function Schedule() {
 
   const activeSchedule = getActiveSchedule(schedules, content);
 
+  const isScheduleActive = (schedule: Schedule): boolean => {
+    if (schedule.status === 'done') return false;
+    const start = getScheduleStartTime(schedule).getTime();
+    const duration = getScheduleTotalDuration(schedule, content) * 1000;
+    if (duration <= 0) return false;
+    const end = schedule.mode === 'loop' ? Infinity : start + duration;
+    return start <= Date.now() && Date.now() <= end;
+  };
+
   const getEffectiveStatus = (schedule: Schedule): ScheduleStatus => {
     if (schedule.status === 'done') return 'done';
-    if (activeSchedule?.id === schedule.id) return 'playing';
+    if (isScheduleActive(schedule)) return 'playing';
     return schedule.status || 'unplayed';
   };
 
@@ -221,6 +231,12 @@ export default function Schedule() {
     };
 
     const screenIdsToAssign = recreateScreenIds.length > 0 ? recreateScreenIds : ['screen-default'];
+    const conflicts = getScheduleConflicts(recreateStartTime, recreateFromSchedule.items, recreateMode, screenIdsToAssign, schedules, content);
+    if (conflicts.length > 0) {
+      setConflictWarnings(conflicts);
+      return;
+    }
+
     const warnings: { id: string; name: string; scheduleName: string }[] = [];
     for (const screenId of screenIdsToAssign) {
       const screenState = getScreenPlayerState(screenId);
@@ -472,6 +488,15 @@ export default function Schedule() {
                                 )}>
                                 <div className="flex items-center justify-between mb-1">
                                   <div className="flex items-center gap-2 min-w-0">
+                                    <div className={cn("w-5 h-5 rounded-full flex items-center justify-center flex-shrink-0",
+                                      status === 'playing' ? "bg-secondary/30 text-primary-dark" :
+                                      status === 'done' ? "bg-gray-100 text-gray-400" :
+                                      "bg-blue-50 text-blue-500"
+                                    )}>
+                                      {status === 'playing' && <Play className="w-3 h-3 ml-0.5" />}
+                                      {status === 'done' && <CheckCircle2 className="w-3 h-3" />}
+                                      {status !== 'playing' && status !== 'done' && <Clock className="w-3 h-3" />}
+                                    </div>
                                     <span className="font-medium text-sm text-gray-900 truncate">{schedule.name}</span>
                                     {assignedScreens.length === 1 && (
                                       <span className="inline-flex items-center gap-1 px-1.5 py-0.5 bg-gray-100 text-gray-600 rounded text-[10px] font-medium flex-shrink-0">
@@ -544,7 +569,7 @@ export default function Schedule() {
                     .map((schedule) => (
                       <tr
                         key={schedule.id}
-                        className={cn("hover:bg-gray-50/50 transition-colors group", activeSchedule?.id === schedule.id && "bg-primary/[0.02]")}
+                        className={cn("hover:bg-gray-50/50 transition-colors group", isScheduleActive(schedule) && "bg-primary/[0.02]")}
                       >
                         {showChecklist && (
                           <td className="px-6 py-4 text-center">
@@ -558,17 +583,26 @@ export default function Schedule() {
                         )}
                         <td className="px-6 py-4">
                           <div className="flex items-center gap-3">
-                            <div className={cn("w-8 h-8 rounded-full flex items-center justify-center",
-                              activeSchedule?.id === schedule.id ? "bg-secondary/30 text-primary-dark" : "bg-gray-100 text-gray-400"
-                            )}>
-                              <Play className="w-4 h-4 ml-0.5" />
-                            </div>
+                            {(() => {
+                              const status = getEffectiveStatus(schedule);
+                              return (
+                                <div className={cn("w-8 h-8 rounded-full flex items-center justify-center",
+                                  status === 'playing' ? "bg-secondary/30 text-primary-dark" :
+                                  status === 'done' ? "bg-gray-100 text-gray-400" :
+                                  "bg-blue-50 text-blue-500"
+                                )}>
+                                  {status === 'playing' && <Play className="w-4 h-4 ml-0.5" />}
+                                  {status === 'done' && <CheckCircle2 className="w-4 h-4" />}
+                                  {status !== 'playing' && status !== 'done' && <Clock className="w-4 h-4" />}
+                                </div>
+                              );
+                            })()}
                             <div>
                               <div className="flex items-center gap-2">
                                 <span className="font-medium text-gray-900 group-hover:text-primary transition-colors">
                                   {schedule.name}
                                 </span>
-                                {activeSchedule?.id === schedule.id && (
+                                {isScheduleActive(schedule) && (
                                   <span className="px-1.5 py-0.5 bg-secondary/30 text-primary-dark rounded text-[10px] font-bold uppercase">Now</span>
                                 )}
                               </div>
@@ -873,6 +907,30 @@ export default function Schedule() {
               <button onClick={() => { setActiveScreenWarnings(null); setPendingRecreate(null); }} className="flex-1 py-2.5 bg-white border border-gray-200 hover:bg-gray-50 text-gray-800 rounded-lg text-sm font-medium transition-colors cursor-pointer">Cancel</button>
               <button onClick={confirmActiveScreenRecreate} className="flex-1 py-2.5 bg-primary hover:bg-primary-dark text-white rounded-lg text-sm font-medium transition-colors cursor-pointer shadow-sm">Continue</button>
             </div>
+          </div>
+        </div>, document.body
+      )}
+
+      {conflictWarnings && createPortal(
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-gray-900/50 backdrop-blur-sm animate-in fade-in">
+          <div className="bg-white rounded-xl shadow-2xl w-full max-w-md overflow-hidden flex flex-col animate-in slide-in-from-bottom-4 text-center p-6">
+            <div className="w-12 h-12 rounded-full bg-red-50 flex items-center justify-center mx-auto mb-4 border border-red-100"><AlertTriangle className="w-6 h-6 text-red-500" /></div>
+            <h3 className="font-heading font-semibold text-lg text-gray-900 mb-2">Schedule Conflict</h3>
+            <div className="bg-red-50 border border-red-200 rounded-lg p-3 mb-4 text-left space-y-3">
+              {conflictWarnings.map(w => (
+                <div key={w.screenId}>
+                  <p className="text-xs font-semibold text-red-800">
+                    {w.screenName} — "<span className="font-bold">{w.conflictingScheduleName}</span>"
+                  </p>
+                  <p className="text-[11px] text-red-600 mt-0.5">
+                    {formatScheduleTime(w.conflictingScheduleStart)}
+                    {w.conflictingScheduleEnd ? ` — ${formatScheduleTime(w.conflictingScheduleEnd)}` : ' — Plays until stopped'}
+                  </p>
+                </div>
+              ))}
+            </div>
+            <p className="text-gray-500 text-sm mb-6">Remove the conflicting screens or change the start time to continue.</p>
+            <button onClick={() => setConflictWarnings(null)} className="w-full py-2.5 bg-primary hover:bg-primary-dark text-white rounded-lg text-sm font-medium transition-colors cursor-pointer shadow-sm">Go Back</button>
           </div>
         </div>, document.body
       )}

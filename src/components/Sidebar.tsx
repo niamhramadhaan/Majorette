@@ -1,8 +1,9 @@
 import React from 'react';
 import { NavLink, useLocation } from 'react-router-dom';
 import { LayoutDashboard, MapPin, Film, CalendarDays, Settings, X } from 'lucide-react';
-import { cn } from '../lib/utils';
+import { cn, getThemeColor } from '../lib/utils';
 import { APP_CONFIG } from '../config/app';
+import { Highlighter } from './ui/highlighter';
 
 export default function Sidebar({ open, setOpen, requestNavigation }: { open: boolean; setOpen: (o: boolean) => void; requestNavigation: (path: string) => void }) {
   const location = useLocation();
@@ -30,12 +31,14 @@ export default function Sidebar({ open, setOpen, requestNavigation }: { open: bo
     >
       <div className="flex items-center justify-between lg:justify-start h-20 px-6 lg:px-6 md:justify-center md:px-0 border-b border-gray-50">
         <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-xl overflow-hidden shadow-sm shadow-primary/20 flex-shrink-0 bg-primary flex items-center justify-center">
-            <img src="/logo.png" alt="JEMIMA" className="w-full h-full object-cover" />
-          </div>
+          <span className="md:block lg:hidden font-heading font-bold text-2xl text-primary">J</span>
           <div className="hidden lg:block">
-            <h1 className="font-heading font-bold text-lg text-primary leading-tight">{APP_CONFIG.name}</h1>
-            <p className="text-[9px] text-muted-teal font-medium tracking-wide uppercase truncate max-w-[140px] leading-tight" title={APP_CONFIG.tagline}>{APP_CONFIG.tagline}</p>
+            <h1 className="font-heading font-bold text-xl text-primary tracking-[0.2em] leading-tight">{APP_CONFIG.name}</h1>
+            <p className="text-xs text-muted-teal italic mt-0.5 leading-tight" title={APP_CONFIG.tagline}>
+              <Highlighter action="underline" color={getThemeColor('--color-primary')} strokeWidth={1.2} iterations={1} padding={1} animationDuration={800}>
+                {APP_CONFIG.tagline}
+              </Highlighter>
+            </p>
           </div>
         </div>
         <button className="md:hidden text-gray-400 hover:text-gray-600" onClick={() => setOpen(false)}>
@@ -69,6 +72,10 @@ export default function Sidebar({ open, setOpen, requestNavigation }: { open: bo
             </NavLink>
           );
         })}
+      </div>
+
+      <div className="flex-shrink-0 flex items-end justify-center pointer-events-none overflow-hidden -mb-4">
+        <img src="/logo.png" alt="" className="w-40 object-contain opacity-[0.12] hover:opacity-[0.75] transition-opacity duration-300 cursor-default pointer-events-auto" />
       </div>
 
       <div className="p-4 md:p-2 lg:p-4 border-t border-gray-100 flex flex-col gap-1">

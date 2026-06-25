@@ -6,7 +6,7 @@ export const APP_CONFIG = {
   description: import.meta.env.VITE_APP_DESCRIPTION || 'Manage and schedule media across multiple physical venues and screens.',
   logoUrl: import.meta.env.VITE_LOGO_URL || null,
   primaryColor: '#0E7B35',
-  contentRoot: import.meta.env.VITE_CONTENT_ROOT || 'D:\\JEMIMA',
+  contentRoot: import.meta.env.VITE_CONTENT_ROOT || './media',
   serverUrl: import.meta.env.VITE_SERVER_URL || 'http://localhost:3001',
   contentTypes: {
     video: { accept: 'video/*', extensions: ['mp4', 'webm', 'mkv', 'avi', 'mov'], icon: 'Film' },

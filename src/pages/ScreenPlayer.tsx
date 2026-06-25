@@ -84,18 +84,13 @@ export default function ScreenPlayer() {
 
   const sid = screenId || '';
 
-  const log = (msg: string) => console.log(`[ScreenPlayer] ${msg}`);
-
   const loadData = useCallback(() => {
     try {
-      log(`loadData — screenId: ${sid}`);
 
       const storedContent = localStorage.getItem(STORAGE_KEYS.CONTENT);
       const storedSchedules = localStorage.getItem(STORAGE_KEYS.SCHEDULES);
       const contentItems = storedContent ? JSON.parse(storedContent) : [];
       const scheduleItems = storedSchedules ? JSON.parse(storedSchedules) : [];
-
-      log(`localStorage — content: ${contentItems.length}, schedules: ${scheduleItems.length}`);
 
       setContent(contentItems);
       setSchedules(scheduleItems);
@@ -104,7 +99,6 @@ export default function ScreenPlayer() {
       if (contentItems.length === 0) {
         fetch('/api/content').then(r => r.json()).then(data => {
           if (Array.isArray(data) && data.length > 0) {
-            log(`API fallback — content: ${data.length} items`);
             setContent(data);
             localStorage.setItem(STORAGE_KEYS.CONTENT, JSON.stringify(data));
           }
@@ -113,7 +107,6 @@ export default function ScreenPlayer() {
       if (scheduleItems.length === 0) {
         fetch('/api/schedules').then(r => r.json()).then(data => {
           if (Array.isArray(data) && data.length > 0) {
-            log(`API fallback — schedules: ${data.length} items`);
             setSchedules(data);
             localStorage.setItem(STORAGE_KEYS.SCHEDULES, JSON.stringify(data));
           }
@@ -126,7 +119,6 @@ export default function ScreenPlayer() {
           const localVenues = localStorage.getItem(STORAGE_KEYS.VENUES);
           const localVenueCount = localVenues ? JSON.parse(localVenues).length : 0;
           if (localVenueCount === 0) {
-            log(`API fallback — venues: ${venueData.length} items`);
             localStorage.setItem(STORAGE_KEYS.VENUES, JSON.stringify(venueData));
           } else {
             // Merge: update scheduleId assignments from API venues
@@ -139,7 +131,6 @@ export default function ScreenPlayer() {
                 screens: lv.screens.map(ls => {
                   const apiScreen = apiVenue.screens.find((as: ScreenConfig) => as.id === ls.id);
                   if (apiScreen?.scheduleId && !ls.scheduleId) {
-                    log(`Merging scheduleId ${apiScreen.scheduleId} into screen ${ls.id}`);
                     return { ...ls, scheduleId: apiScreen.scheduleId };
                   }
                   return ls;
@@ -152,7 +143,6 @@ export default function ScreenPlayer() {
           if (sid) {
             const foundAfterMerge = getScreenById(sid);
             if (foundAfterMerge) {
-              log(`screen found after venue merge: ${foundAfterMerge.name}, scheduleId: ${foundAfterMerge.scheduleId || 'none'}`);
               setScreen(foundAfterMerge);
             }
           }
@@ -162,27 +152,23 @@ export default function ScreenPlayer() {
       if (sid) {
         const found = getScreenById(sid);
         if (found) {
-          log(`screen found: ${found.name}`);
           setScreen(found);
         } else {
-          log(`screen not in localStorage, checking API...`);
           // Fallback: check server API for screen config
           fetch('/api/screens')
             .then(res => res.json())
             .then((screens: { screenId: string }[]) => {
               const match = screens.find(s => s.screenId === sid);
               if (match) {
-                log(`API fallback — screen found, seeding localStorage`);
                 const seeded = ensureScreenExists(sid);
                 setScreen(seeded);
               } else {
-                log(`API fallback — screen not found either`);
               }
             })
-            .catch(() => { log('API screens fetch failed'); });
+            .catch(() => {});
         }
       }
-    } catch (e) { log(`loadData error: ${e}`); }
+    } catch (e) { /* ignore */ }
     setIsLoading(false);
   }, [sid]);
 
@@ -241,9 +227,7 @@ export default function ScreenPlayer() {
 
   useEffect(() => {
     if (activeSchedule) {
-      log(`activeSchedule: "${activeSchedule.name}" (${activeSchedule.items.length} items)`);
     } else if (sid && schedules.length > 0) {
-      log(`activeSchedule: null (no matching schedule for screen ${sid})`);
     }
   }, [activeSchedule, sid, schedules.length]);
 

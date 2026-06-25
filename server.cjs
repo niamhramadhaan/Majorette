@@ -12,7 +12,7 @@ function getContentRoot() {
   if (rootIndex !== -1 && args[rootIndex + 1]) {
     return args[rootIndex + 1];
   }
-  return process.env.CONTENT_ROOT || 'D:\\JEMIMA';
+  return process.env.CONTENT_ROOT || './media';
 }
 
 const CONTENT_ROOT = getContentRoot();

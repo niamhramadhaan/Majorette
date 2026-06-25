@@ -4,7 +4,7 @@ import { createPortal } from 'react-dom';
 import { ArrowLeft, Clock, Film, GripVertical, Plus, Trash2, Save, PlayCircle, Search, Filter, Music, Image as ImageIcon, Play, Pause, Monitor, Check, ChevronsUpDown, AlertTriangle } from 'lucide-react';
 import { cn } from '../lib/utils';
 import { Reorder } from 'motion/react';
-import { STORAGE_KEYS, generateId, getTimestamp, addActivity, getThumbnailUrl, resolveFilePath, getAllScreens, assignScheduleToScreen, getActiveScheduleForScreen, getScreenPlayerState, syncToApi } from '../lib/storage';
+import { STORAGE_KEYS, generateId, getTimestamp, addActivity, getThumbnailUrl, resolveFilePath, getAllScreens, assignScheduleToScreen, getActiveScheduleForScreen, getScreenPlayerState, syncToApi, getScheduleConflicts, type ScheduleConflict } from '../lib/storage';
 import type { LocalContent, Schedule, ScheduleItem, ScreenConfig } from '../types';
 
 interface SequenceItem {
@@ -63,6 +63,7 @@ export default function ShowBuilder() {
   const [showScreenDropdown, setShowScreenDropdown] = useState(false);
   const [activeScreenWarnings, setActiveScreenWarnings] = useState<{ id: string; name: string; scheduleName: string }[] | null>(null);
   const [pendingSave, setPendingSave] = useState<{ scheduleItems: ScheduleItem[]; schedules: Schedule[] } | null>(null);
+  const [conflictWarnings, setConflictWarnings] = useState<ScheduleConflict[] | null>(null);
   const screenDropdownRef = useRef<HTMLDivElement>(null);
   const previewRef = useRef<HTMLAudioElement | null>(null);
 
@@ -284,6 +285,12 @@ export default function ShowBuilder() {
       }));
 
       const screenIdsToAssign = selectedScreenIds.length > 0 ? selectedScreenIds : ['screen-default'];
+      const conflicts = getScheduleConflicts(startTime, scheduleItems, scheduleMode, screenIdsToAssign, schedules, content, editingScheduleId || undefined);
+      if (conflicts.length > 0) {
+        setConflictWarnings(conflicts);
+        return;
+      }
+
       const warnings: { id: string; name: string; scheduleName: string }[] = [];
       for (const screenId of screenIdsToAssign) {
         const screenState = getScreenPlayerState(screenId);
@@ -712,6 +719,30 @@ export default function ShowBuilder() {
               <button onClick={() => { setActiveScreenWarnings(null); setPendingSave(null); }} className="flex-1 py-2.5 bg-white border border-gray-200 hover:bg-gray-50 text-gray-800 rounded-lg text-sm font-medium transition-colors cursor-pointer">Cancel</button>
               <button onClick={confirmActiveScreenSave} className="flex-1 py-2.5 bg-primary hover:bg-primary-dark text-white rounded-lg text-sm font-medium transition-colors cursor-pointer shadow-sm">Continue</button>
             </div>
+          </div>
+        </div>, document.body
+      )}
+
+      {conflictWarnings && createPortal(
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-gray-900/50 backdrop-blur-sm animate-in fade-in">
+          <div className="bg-white rounded-xl shadow-2xl w-full max-w-md overflow-hidden flex flex-col animate-in slide-in-from-bottom-4 text-center p-6">
+            <div className="w-12 h-12 rounded-full bg-red-50 flex items-center justify-center mx-auto mb-4 border border-red-100"><AlertTriangle className="w-6 h-6 text-red-500" /></div>
+            <h3 className="font-heading font-semibold text-lg text-gray-900 mb-2">Schedule Conflict</h3>
+            <div className="bg-red-50 border border-red-200 rounded-lg p-3 mb-4 text-left space-y-3">
+              {conflictWarnings.map(w => (
+                <div key={w.screenId}>
+                  <p className="text-xs font-semibold text-red-800">
+                    {w.screenName} — "<span className="font-bold">{w.conflictingScheduleName}</span>"
+                  </p>
+                  <p className="text-[11px] text-red-600 mt-0.5">
+                    {formatStartTime(w.conflictingScheduleStart)}
+                    {w.conflictingScheduleEnd ? ` — ${formatStartTime(w.conflictingScheduleEnd)}` : ' — Plays until stopped'}
+                  </p>
+                </div>
+              ))}
+            </div>
+            <p className="text-gray-500 text-sm mb-6">Remove the conflicting screens or change the start time to continue.</p>
+            <button onClick={() => setConflictWarnings(null)} className="w-full py-2.5 bg-primary hover:bg-primary-dark text-white rounded-lg text-sm font-medium transition-colors cursor-pointer shadow-sm">Go Back</button>
           </div>
         </div>, document.body
       )}
