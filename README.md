@@ -28,6 +28,9 @@ Open `http://localhost:3000`, enter your name, and the setup wizard walks you th
 
 One dashboard, many screens. Each screen plays its own schedule independently ─ perfect for a café with different zones, a retail store with window vs. interior displays, or a church with lobby + sanctuary screens.
 
+<img width="2227" height="1292" alt="image" src="https://github.com/user-attachments/assets/5ccdee8f-b4ed-4f7a-aa14-b0de30185148" />
+
+
 - Assign any schedule to any screen (or let them share)
 - Per-screen controls: skip, pause, resume, mark done ─ all from the dashboard
 - Screens run on their own URLs ─ open them on any device with a browser
@@ -45,6 +48,8 @@ Drag, drop, set a time, done. Build sequences of videos, images, and audio with 
 Want music behind your slideshow? Add an audio track, toggle "Background" ─ it plays continuously behind your images and videos without interrupting the visual flow. Background audio has its own volume control and works regardless of the mute setting.
 
 ### ▸ Accent Themes
+
+<img width="2201" height="467" alt="image" src="https://github.com/user-attachments/assets/12bb50c2-1cf3-4f4d-923a-23480f81f5be" />
 
 Eight color themes to match your brand or mood: Emerald, Forest, Ocean, Royal, Crimson, Sunset, Rose, Slate. Change it in Settings and watch the entire UI update instantly ─ buttons, badges, progress bars, even the login page light rays.
 
@@ -125,7 +130,7 @@ JEMIMA reads files directly from a folder on your system ─ no uploading. Drop 
 
 ### ▸ Play Different Content on Different Screens
 
-This is where JEMIMA shines. Say you have a café with two zones:
+ Say you have a café with two zones:
 
 ```
   Screen: "Window Display"  ──> Schedule: "Lunch Special Slideshow" (loop)
