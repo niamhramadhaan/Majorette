@@ -695,15 +695,41 @@ export default function Dashboard() {
 
           <div className="card p-6">
             <h2 className="font-heading font-semibold text-gray-800 mb-4">Stats</h2>
-            <div className="space-y-4">
-              <div className="flex items-center justify-between"><span className="text-sm text-gray-500">Content Items</span><span className="text-sm font-semibold text-gray-700">{content.length}</span></div>
-              <div className="flex items-center justify-between"><span className="text-sm text-gray-500">Schedules</span><span className="text-sm font-semibold text-gray-700">{schedules.length}</span></div>
+            <div className="space-y-3">
+              <div className="grid grid-cols-2 gap-3">
+                <div className="bg-primary/5 rounded-xl p-4 text-center border border-primary/15">
+                  <p className="text-2xl font-bold text-primary">{content.length}</p>
+                  <p className="text-xs text-primary/60 mt-1">Content Items</p>
+                </div>
+                <div className="bg-primary/10 rounded-xl p-4 text-center border border-primary/20">
+                  <p className="text-2xl font-bold text-primary-dark">{schedules.length}</p>
+                  <p className="text-xs text-primary/60 mt-1">Schedules</p>
+                </div>
+              </div>
               {activeSchedule ? (
-                <div className="flex items-center justify-between"><span className="text-sm text-gray-500">Now Playing</span><span className="text-sm font-semibold text-primary">{activeSchedule.name}</span></div>
+                <div className="bg-primary/5 rounded-xl p-4 flex items-center gap-3">
+                  <Play className="w-4 h-4 text-primary flex-shrink-0" />
+                  <div className="min-w-0">
+                    <p className="text-xs text-gray-500">Now Playing</p>
+                    <p className="text-sm font-bold text-primary truncate">{activeSchedule.name}</p>
+                  </div>
+                </div>
               ) : upcomingSchedule ? (
-                <div className="flex items-center justify-between"><span className="text-sm text-gray-500">Next Schedule</span><span className="text-sm font-semibold text-gray-700">{upcomingSchedule.name}</span></div>
+                <div className="bg-gray-50 rounded-xl p-4 flex items-center gap-3">
+                  <Clock className="w-4 h-4 text-gray-400 flex-shrink-0" />
+                  <div className="min-w-0">
+                    <p className="text-xs text-gray-500">Next Schedule</p>
+                    <p className="text-sm font-semibold text-gray-700 truncate">{upcomingSchedule.name}</p>
+                  </div>
+                </div>
               ) : (
-                <div className="flex items-center justify-between"><span className="text-sm text-gray-500">Now Playing</span><span className="text-sm font-semibold text-gray-400">None</span></div>
+                <div className="bg-gray-50 rounded-xl p-4 flex items-center gap-3">
+                  <Play className="w-4 h-4 text-gray-400 flex-shrink-0" />
+                  <div>
+                    <p className="text-xs text-gray-500">Now Playing</p>
+                    <p className="text-sm font-medium text-gray-400">None</p>
+                  </div>
+                </div>
               )}
             </div>
           </div>

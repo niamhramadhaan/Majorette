@@ -8,6 +8,7 @@
     "type": "git",
     "url": "https://github.com/niamhramadhaan/jemima.git"
   },
+  "homepage": "https://github.com/niamhramadhaan/jemima#readme",
   "keywords": ["digital-signage", "media-player", "scheduling", "electron", "react"],
   "private": true,
   "type": "module",

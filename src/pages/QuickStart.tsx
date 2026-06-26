@@ -1,4 +1,4 @@
-﻿import React, { useState } from 'react';
+﻿import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ArrowRight, ArrowLeft, Check, Play, Film, Music, Image as ImageIcon } from 'lucide-react';
 import { cn } from '../lib/utils';
@@ -17,6 +17,14 @@ export default function QuickStart() {
   const [currentStep, setCurrentStep] = useState(1);
   const [venueName, setVenueName] = useState('');
   const [isCreating, setIsCreating] = useState(false);
+  const [resolvedPath, setResolvedPath] = useState<string | null>(null);
+
+  useEffect(() => {
+    fetch(APP_CONFIG.serverUrl + '/health')
+      .then(r => r.ok ? r.json() : null)
+      .then(data => { if (data?.contentRoot) setResolvedPath(data.contentRoot); })
+      .catch(() => {});
+  }, []);
 
   const handleNext = () => { if (currentStep < 3) setCurrentStep(currentStep + 1); };
   const handleBack = () => { if (currentStep > 1) setCurrentStep(currentStep - 1); };
@@ -69,7 +77,7 @@ export default function QuickStart() {
           {currentStep === 1 && (
             <div className="text-center space-y-6">
               <h3 className="text-xl font-heading font-semibold text-gray-900">Welcome to {APP_CONFIG.name}</h3>
-              <p className="text-gray-600">Set up your digital signage in seconds. Add your media files to <code className="bg-gray-100 px-1.5 py-0.5 rounded text-sm">{APP_CONFIG.contentRoot}</code> and manage them from here.</p>
+              <p className="text-gray-600">Set up your digital signage in seconds. Add your media files to the <code className="bg-gray-100 px-1.5 py-0.5 rounded text-sm">media</code> folder in your JEMIMA directory and manage them from here.</p>
               <div className="grid grid-cols-3 gap-4 py-4">
                 <div className="p-4 bg-gray-50 rounded-xl"><Film className="w-8 h-8 text-primary mx-auto mb-2" /><p className="text-sm font-medium text-gray-700">Video</p></div>
                 <div className="p-4 bg-gray-50 rounded-xl"><Music className="w-8 h-8 text-primary mx-auto mb-2" /><p className="text-sm font-medium text-gray-700">Audio</p></div>
@@ -96,7 +104,7 @@ export default function QuickStart() {
               <p className="text-gray-600">Your venue is ready. Add media files to the content folder, then create a schedule to start playing.</p>
               <div className="bg-gray-50 rounded-xl p-4">
                 <p className="text-sm text-gray-500 mb-1">Content Folder</p>
-                <p className="text-xs font-mono text-gray-600 mt-2">{APP_CONFIG.contentRoot}</p>
+                <p className="text-xs font-mono text-gray-600 mt-2">{resolvedPath || APP_CONFIG.contentRoot}</p>
                 <p className="text-xs text-gray-400 mt-2">Supported: mp4, webm, mp3, wav, jpg, png, webp</p>
               </div>
             </div>
