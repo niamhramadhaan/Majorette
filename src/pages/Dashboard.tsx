@@ -1,6 +1,6 @@
 ﻿import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Play, Pause, Plus, Calendar, ExternalLink, Music, Image as ImageIcon, Film, Clock, SkipBack, SkipForward, CheckCircle, RotateCcw, X, CheckCircle2, History, Keyboard, Monitor, Check, ChevronsUpDown, ChevronLeft, ChevronRight, ChevronDown, AlertTriangle } from 'lucide-react';
+import { Play, Pause, Plus, Calendar, ExternalLink, Music, Image as ImageIcon, Film, Hash, Clock, SkipBack, SkipForward, CheckCircle, RotateCcw, X, CheckCircle2, History, Keyboard, Monitor, Check, ChevronsUpDown, ChevronLeft, ChevronRight, ChevronDown, AlertTriangle } from 'lucide-react';
 import { cn } from '../lib/utils';
 import { createPortal } from 'react-dom';
 import { STORAGE_KEYS, getActivities, getThumbnailUrl, getActiveSchedule, getUpcomingSchedule, getScheduleStartTime, emitSkipSignal, emitResumeSignal, emitDoneSignal, getPlayerState, getScheduleElapsed, getCurrentItemIndex, generateId, getTimestamp, getScheduleTotalDuration, resolveFilePath, getAllScreens, getScreenPlayerState, getActiveScheduleForScreen, assignScheduleToScreen, emitSkipSignalForScreen, emitPauseSignalForScreen, emitResumeSignalForScreen, emitDoneSignalForScreen, getUpcomingScheduleForScreen, addActivity, syncToApi, getScheduleConflicts, isOverlayItem, type ScheduleConflict } from '../lib/storage';
@@ -696,39 +696,28 @@ export default function Dashboard() {
           <div className="card p-6">
             <h2 className="font-heading font-semibold text-gray-800 mb-4">Stats</h2>
             <div className="space-y-3">
-              <div className="grid grid-cols-2 gap-3">
-                <div className="bg-primary/5 rounded-xl p-4 text-center border border-primary/15">
-                  <p className="text-2xl font-bold text-primary">{content.length}</p>
-                  <p className="text-xs text-primary/60 mt-1">Content Items</p>
-                </div>
-                <div className="bg-primary/10 rounded-xl p-4 text-center border border-primary/20">
-                  <p className="text-2xl font-bold text-primary-dark">{schedules.length}</p>
-                  <p className="text-xs text-primary/60 mt-1">Schedules</p>
-                </div>
+              <div className="flex items-center gap-3 p-4 bg-gray-50 rounded-xl">
+                <div className="w-10 h-10 bg-primary/10 rounded-lg flex items-center justify-center"><Film className="w-5 h-5 text-primary" /></div>
+                <div><p className="text-sm font-medium text-gray-700">{content.length}</p><p className="text-xs text-gray-500">Content Items</p></div>
+              </div>
+              <div className="flex items-center gap-3 p-4 bg-gray-50 rounded-xl">
+                <div className="w-10 h-10 bg-primary/10 rounded-lg flex items-center justify-center"><Hash className="w-5 h-5 text-primary" /></div>
+                <div><p className="text-sm font-medium text-gray-700">{schedules.length}</p><p className="text-xs text-gray-500">Schedules</p></div>
               </div>
               {activeSchedule ? (
-                <div className="bg-primary/5 rounded-xl p-4 flex items-center gap-3">
-                  <Play className="w-4 h-4 text-primary flex-shrink-0" />
-                  <div className="min-w-0">
-                    <p className="text-xs text-gray-500">Now Playing</p>
-                    <p className="text-sm font-bold text-primary truncate">{activeSchedule.name}</p>
-                  </div>
+                <div className="flex items-center gap-3 p-4 bg-gray-50 rounded-xl">
+                  <div className="w-10 h-10 bg-primary/10 rounded-lg flex items-center justify-center"><Play className="w-5 h-5 text-primary" /></div>
+                  <div className="min-w-0"><p className="text-sm font-medium text-gray-700 truncate">{activeSchedule.name}</p><p className="text-xs text-gray-500">Now Playing</p></div>
                 </div>
               ) : upcomingSchedule ? (
-                <div className="bg-gray-50 rounded-xl p-4 flex items-center gap-3">
-                  <Clock className="w-4 h-4 text-gray-400 flex-shrink-0" />
-                  <div className="min-w-0">
-                    <p className="text-xs text-gray-500">Next Schedule</p>
-                    <p className="text-sm font-semibold text-gray-700 truncate">{upcomingSchedule.name}</p>
-                  </div>
+                <div className="flex items-center gap-3 p-4 bg-gray-50 rounded-xl">
+                  <div className="w-10 h-10 bg-primary/10 rounded-lg flex items-center justify-center"><Clock className="w-5 h-5 text-primary" /></div>
+                  <div className="min-w-0"><p className="text-sm font-medium text-gray-700 truncate">{upcomingSchedule.name}</p><p className="text-xs text-gray-500">Next Schedule</p></div>
                 </div>
               ) : (
-                <div className="bg-gray-50 rounded-xl p-4 flex items-center gap-3">
-                  <Play className="w-4 h-4 text-gray-400 flex-shrink-0" />
-                  <div>
-                    <p className="text-xs text-gray-500">Now Playing</p>
-                    <p className="text-sm font-medium text-gray-400">None</p>
-                  </div>
+                <div className="flex items-center gap-3 p-4 bg-gray-50 rounded-xl">
+                  <div className="w-10 h-10 bg-gray-100 rounded-lg flex items-center justify-center"><Play className="w-5 h-5 text-gray-400" /></div>
+                  <div><p className="text-sm font-medium text-gray-400">None</p><p className="text-xs text-gray-500">Now Playing</p></div>
                 </div>
               )}
             </div>
