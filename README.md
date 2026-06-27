@@ -33,7 +33,8 @@ One dashboard, many screens. Each screen plays its own schedule independently â”
 
 <img width="540" height="484" alt="Recording 2026-06-27 204517" src="https://github.com/user-attachments/assets/c56533a2-0067-45e4-b326-3a35f7af2957" />
 
-<img width="540" height="326" alt="Recording 2026-06-27 204551" src="https://github.com/user-attachments/assets/2d7b36f4-ea7f-44ed-8a4b-ca48f539ddd1" />
+<img width="540" height="302" alt="Recording 2026-06-27 204324" src="https://github.com/user-attachments/assets/4963552f-0f38-454e-8ba9-262ba5ffe52a" />
+
 
 - Assign any schedule to any screen (or let them share)
 - Per-screen controls: skip, pause, resume, mark done â”€ all from the dashboard
