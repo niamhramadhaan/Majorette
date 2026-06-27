@@ -5,7 +5,7 @@
 
 > Got screens? Got content? JEMIMA ties them together. Schedule images, videos, and audio across multiple screens from one dashboard. No cloud, no subscriptions, no nonsense ─ just your media, your way.
 
-<img width="540" height="346" alt="Recording 2026-06-27 204440" src="https://github.com/user-attachments/assets/8337b376-ed84-4e91-a4e4-6d9d9e219ae0" />
+<img width="540" height="346" alt="Recording 2026-06-27 204440 (1)" src="https://github.com/user-attachments/assets/041a7215-7a36-49a0-9f6a-f66f8e4b33af" />
 
 ---
 
