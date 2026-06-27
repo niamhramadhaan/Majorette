@@ -1,8 +1,11 @@
 # JEMIMA
 
 **Joint Engine Mini Media** ─ Open-source digital signage & media scheduling platform.
+<img width="638" height="285" alt="image" src="https://github.com/user-attachments/assets/5021f566-4b41-41d9-a28f-528c307f5789" />
 
 > Got screens? Got content? JEMIMA ties them together. Schedule images, videos, and audio across multiple screens from one dashboard. No cloud, no subscriptions, no nonsense ─ just your media, your way.
+
+<img width="540" height="346" alt="Recording 2026-06-27 204440" src="https://github.com/user-attachments/assets/8337b376-ed84-4e91-a4e4-6d9d9e219ae0" />
 
 ---
 
@@ -28,8 +31,9 @@ Open `http://localhost:3000`, enter your name, and the setup wizard walks you th
 
 One dashboard, many screens. Each screen plays its own schedule independently ─ perfect for a café with different zones, a retail store with window vs. interior displays, or a church with lobby + sanctuary screens.
 
-<img width="2227" height="1292" alt="image" src="https://github.com/user-attachments/assets/5ccdee8f-b4ed-4f7a-aa14-b0de30185148" />
+<img width="540" height="484" alt="Recording 2026-06-27 204517" src="https://github.com/user-attachments/assets/c56533a2-0067-45e4-b326-3a35f7af2957" />
 
+<img width="540" height="326" alt="Recording 2026-06-27 204551" src="https://github.com/user-attachments/assets/2d7b36f4-ea7f-44ed-8a4b-ca48f539ddd1" />
 
 - Assign any schedule to any screen (or let them share)
 - Per-screen controls: skip, pause, resume, mark done ─ all from the dashboard
@@ -39,11 +43,16 @@ One dashboard, many screens. Each screen plays its own schedule independently �
 
 Drag, drop, set a time, done. Build sequences of videos, images, and audio with a visual editor. Loop them forever or play once and auto-complete.
 
+<img width="540" height="346" alt="Recording 2026-06-27 204158" src="https://github.com/user-attachments/assets/9e6aaf68-abf8-4936-a3a5-ab9a0b24883a" />
+
+
 - Conflict detection catches overlapping schedules before they cause problems
 - Status indicators: Ready → Now Playing → Done (you always know what's happening)
 - Play Again: recreate any finished schedule with one click ─ great for daily loops
 
 ### ▸ Background Audio
+
+<img width="540" height="260" alt="Recording 2026-06-27 204236" src="https://github.com/user-attachments/assets/b918db10-a582-4508-80d8-b02479b6d221" />
 
 Want music behind your slideshow? Add an audio track, toggle "Background" ─ it plays continuously behind your images and videos without interrupting the visual flow. Background audio has its own volume control and works regardless of the mute setting.
 
@@ -68,6 +77,8 @@ Running a screening? Lock the controls (L key) to hide all UI ─ no accidental 
 
 ### ▸ Dashboard
 
+<img width="1827" height="1207" alt="image" src="https://github.com/user-attachments/assets/ce3dd811-838c-4a78-bb92-dfd977c22423" />
+
 Your command center. See what's playing, what's next, and what's been played ─ all at a glance.
 
 - **Now Playing** ─ cycle through screens, each shows its active schedule with controls
@@ -76,6 +87,10 @@ Your command center. See what's playing, what's next, and what's been played ─
 - **Top Played Media** ─ your most frequently scheduled content
 
 ### ▸ Media Library
+
+<img width="1837" height="1120" alt="Screenshot 2026-06-27 204004" src="https://github.com/user-attachments/assets/67d9f9fc-5c0d-4a0b-9fd9-ea33d98d09a4" />
+
+<img width="1420" height="764" alt="Screenshot 2026-06-27 203913" src="https://github.com/user-attachments/assets/9bb2392c-e25f-4819-86e5-e1a127602916" />
 
 JEMIMA reads files directly from a folder on your system ─ no uploading. Drop your media in the content folder, hit Ingest, and it appears in the library. Supports video (MP4, WebM, MKV), audio (MP3, WAV, OGG), and images (JPG, PNG, WebP, GIF, SVG).
 
